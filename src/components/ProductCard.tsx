@@ -85,55 +85,65 @@ const ProductCard = ({
       onMouseEnter={() => setIsHovering(true)}
       onMouseLeave={() => setIsHovering(false)}
     >
-      {/* Product Image */}
-      <div className="relative overflow-hidden aspect-square bg-gray-100">
-        <motion.img
-          src={image}
-          alt={name}
-          className="w-full h-full object-cover object-center"
-          whileHover={{ scale: 1.05 }}
-          transition={{ duration: 0.5 }}
-        />
-        
-        {/* Discount Tag */}
-        {discount && (
-          <div className="absolute top-2 left-2 bg-burgundy text-white text-xs px-2 py-1 rounded">
-            -{discount}%
-          </div>
-        )}
-        
-        {/* Quick Actions */}
-        <motion.div 
-          className="absolute bottom-0 left-0 right-0 p-3 bg-white/90 backdrop-blur-sm flex items-center justify-between"
-          initial={{ y: '100%' }}
-          animate={{ y: isHovering ? 0 : '100%' }}
-          transition={{ duration: 0.3, ease: "easeInOut" }}
-        >
-          <motion.button
-            className="p-2 rounded-full bg-navy text-white hover:bg-burgundy transition-colors"
-            whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.9 }}
-            onClick={handleAddToCart}
-          >
-            <ShoppingCart size={16} />
-          </motion.button>
+      {/* Product Image with Link to Detail Page */}
+      <Link to={`/product/${id}`} className="block">
+        <div className="relative overflow-hidden aspect-square bg-gray-100">
+          <motion.img
+            src={image}
+            alt={name}
+            className="w-full h-full object-cover object-center"
+            whileHover={{ scale: 1.05 }}
+            transition={{ duration: 0.5 }}
+          />
           
-          <Link to={`/product/${id}`} className="p-2 rounded-full bg-navy text-white hover:bg-burgundy transition-colors">
-            <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
-              <Eye size={16} />
-            </motion.div>
-          </Link>
+          {/* Discount Tag */}
+          {discount && (
+            <div className="absolute top-2 left-2 bg-burgundy text-white text-xs px-2 py-1 rounded">
+              -{discount}%
+            </div>
+          )}
           
-          <motion.button
-            className={`p-2 rounded-full ${inWishlist ? 'bg-burgundy' : 'bg-navy'} text-white hover:bg-burgundy transition-colors`}
-            whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.9 }}
-            onClick={handleToggleWishlist}
+          {/* Quick Actions */}
+          <motion.div 
+            className="absolute bottom-0 left-0 right-0 p-3 bg-white/90 backdrop-blur-sm flex items-center justify-between"
+            initial={{ y: '100%' }}
+            animate={{ y: isHovering ? 0 : '100%' }}
+            transition={{ duration: 0.3, ease: "easeInOut" }}
           >
-            <Heart size={16} fill={inWishlist ? "white" : "none"} />
-          </motion.button>
-        </motion.div>
-      </div>
+            <motion.button
+              className="p-2 rounded-full bg-navy text-white hover:bg-burgundy transition-colors"
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.9 }}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                handleAddToCart();
+              }}
+            >
+              <ShoppingCart size={16} />
+            </motion.button>
+            
+            <Link to={`/product/${id}`} onClick={(e) => e.stopPropagation()} className="p-2 rounded-full bg-navy text-white hover:bg-burgundy transition-colors">
+              <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
+                <Eye size={16} />
+              </motion.div>
+            </Link>
+            
+            <motion.button
+              className={`p-2 rounded-full ${inWishlist ? 'bg-burgundy' : 'bg-navy'} text-white hover:bg-burgundy transition-colors`}
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.9 }}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                handleToggleWishlist();
+              }}
+            >
+              <Heart size={16} fill={inWishlist ? "white" : "none"} />
+            </motion.button>
+          </motion.div>
+        </div>
+      </Link>
       
       {/* Product Info */}
       <div className="p-4">

@@ -1,5 +1,6 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { toast } from '@/hooks/use-toast';
 
 export interface WishlistItem {
   id: string;
@@ -21,6 +22,7 @@ const WishlistContext = createContext<WishlistContextType | undefined>(undefined
 
 export const WishlistProvider = ({ children }: { children: React.ReactNode }) => {
   const [items, setItems] = useState<WishlistItem[]>([]);
+  const [initialized, setInitialized] = useState(false);
   
   // Load wishlist from localStorage on mount
   useEffect(() => {
@@ -32,12 +34,15 @@ export const WishlistProvider = ({ children }: { children: React.ReactNode }) =>
         console.error('Failed to parse wishlist from localStorage:', error);
       }
     }
+    setInitialized(true);
   }, []);
   
   // Save wishlist to localStorage whenever it changes
   useEffect(() => {
-    localStorage.setItem('wishlist', JSON.stringify(items));
-  }, [items]);
+    if (initialized) {
+      localStorage.setItem('wishlist', JSON.stringify(items));
+    }
+  }, [items, initialized]);
 
   const addItem = (item: WishlistItem) => {
     setItems(prevItems => {
@@ -45,12 +50,28 @@ export const WishlistProvider = ({ children }: { children: React.ReactNode }) =>
       if (existingItem) {
         return prevItems;
       }
+      
+      // Add item with animation notification
+      toast({
+        title: "Added to Wishlist",
+        description: `${item.name} has been added to your wishlist`,
+      });
+      
       return [...prevItems, item];
     });
   };
 
   const removeItem = (id: string) => {
-    setItems(prevItems => prevItems.filter(item => item.id !== id));
+    setItems(prevItems => {
+      const itemToRemove = prevItems.find(item => item.id === id);
+      if (itemToRemove) {
+        toast({
+          title: "Removed from Wishlist",
+          description: `${itemToRemove.name} has been removed from your wishlist`,
+        });
+      }
+      return prevItems.filter(item => item.id !== id);
+    });
   };
 
   const isInWishlist = (id: string) => {
@@ -58,6 +79,12 @@ export const WishlistProvider = ({ children }: { children: React.ReactNode }) =>
   };
 
   const clearWishlist = () => {
+    if (items.length > 0) {
+      toast({
+        title: "Wishlist Cleared",
+        description: "All items have been removed from your wishlist",
+      });
+    }
     setItems([]);
   };
 
