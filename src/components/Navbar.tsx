@@ -1,8 +1,9 @@
 
-import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import { Menu, X, ChevronDown } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { Link, useLocation } from 'react-router-dom';
+import { Menu, X, ChevronDown, ChevronRight } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { motion, AnimatePresence } from 'framer-motion';
 
 const navItems = [
   { name: 'Home', path: '/' },
@@ -29,6 +30,8 @@ const Navbar = () => {
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
   const [scrolled, setScrolled] = useState(false);
   const isMobile = useIsMobile();
+  const location = useLocation();
+  const navRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -39,6 +42,12 @@ const Navbar = () => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
+  useEffect(() => {
+    // Close mobile menu when route changes
+    setIsOpen(false);
+    setActiveDropdown(null);
+  }, [location]);
+
   const toggleDropdown = (name: string) => {
     if (activeDropdown === name) {
       setActiveDropdown(null);
@@ -47,115 +56,179 @@ const Navbar = () => {
     }
   };
 
+  // Click outside to close mobile menu
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (navRef.current && !navRef.current.contains(event.target as Node) && isOpen) {
+        setIsOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isOpen]);
+
   return (
     <nav 
-      className={`fixed top-0 left-0 w-full z-50 transition-all duration-300 ${
-        scrolled ? 'bg-white shadow-md py-2' : 'bg-transparent py-4'
+      ref={navRef}
+      className={`fixed top-0 left-0 w-full z-50 transition-all duration-500 ${
+        scrolled ? 'bg-white/95 backdrop-blur-sm shadow-md py-2' : 'bg-transparent py-4'
       }`}
     >
-      <div className="container mx-auto px-4 md:px-6">
+      <div className="container mx-auto px-4 lg:px-8">
         <div className="flex justify-between items-center">
           <Link to="/" className="flex items-center">
-            <span className="text-2xl font-bold font-playfair text-navy">ARIHANT <span className="text-burgundy">4MAN</span></span>
+            <motion.div
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.5 }}
+              className="flex items-center"
+            >
+              <div className="relative h-10 w-14 mr-2">
+                <div className="absolute inset-0 bg-navy rounded-lg transform rotate-12"></div>
+                <div className="absolute inset-0 flex items-center justify-center text-2xl font-bold text-white">4</div>
+              </div>
+              <div className="font-playfair font-bold">
+                <span className="text-burgundy text-2xl">man</span>
+                {!isMobile && <div className="text-xs text-gray-500 -mt-1">A MARWADI SHOP</div>}
+              </div>
+            </motion.div>
           </Link>
 
           {/* Desktop Navigation */}
-          <div className="hidden md:flex space-x-8">
+          <div className="hidden md:flex items-center space-x-1 lg:space-x-6">
             {navItems.map((item) => (
-              <div key={item.name} className="relative group">
+              <motion.div 
+                key={item.name} 
+                className="relative group"
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: 0.1 * navItems.indexOf(item) }}
+              >
                 {item.subItems ? (
-                  <div className="flex items-center cursor-pointer">
-                    <span 
-                      className="text-navy hover:text-burgundy transition-colors"
+                  <div className="flex items-center">
+                    <button
+                      className={`px-2 py-2 rounded-md flex items-center text-gray-700 group-hover:text-burgundy transition-colors ${location.pathname === item.path ? 'text-burgundy' : ''}`}
                       onClick={() => toggleDropdown(item.name)}
+                      onMouseEnter={() => !isMobile && setActiveDropdown(item.name)}
+                      onMouseLeave={() => !isMobile && setActiveDropdown(null)}
                     >
                       {item.name}
-                    </span>
-                    <ChevronDown size={16} className="ml-1" />
+                      <ChevronDown size={16} className="ml-1 transition-transform group-hover:rotate-180" />
+                    </button>
                     
-                    <div className="absolute hidden group-hover:block top-full left-0 w-56 bg-white shadow-md rounded-md overflow-hidden mt-2">
-                      {item.subItems.map((subItem) => (
-                        <Link
-                          key={subItem.name}
-                          to={subItem.path}
-                          className="block px-4 py-2 text-navy hover:bg-beige/50 transition-colors"
+                    <AnimatePresence>
+                      {(isMobile ? activeDropdown === item.name : true) && (
+                        <motion.div
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: 10 }}
+                          transition={{ duration: 0.2 }}
+                          className="absolute hidden group-hover:block top-full left-0 w-60 bg-white shadow-lg rounded-md overflow-hidden mt-1 z-50"
+                          onMouseEnter={() => !isMobile && setActiveDropdown(item.name)}
+                          onMouseLeave={() => !isMobile && setActiveDropdown(null)}
                         >
-                          {subItem.name}
-                        </Link>
-                      ))}
-                    </div>
-                  </div>
-                ) : (
-                  <Link
-                    to={item.path}
-                    className="text-navy hover:text-burgundy transition-colors"
-                  >
-                    {item.name}
-                  </Link>
-                )}
-              </div>
-            ))}
-          </div>
-
-          {/* Mobile Menu Button */}
-          <button
-            className="md:hidden text-navy focus:outline-none"
-            onClick={() => setIsOpen(!isOpen)}
-          >
-            {isOpen ? <X size={24} /> : <Menu size={24} />}
-          </button>
-        </div>
-
-        {/* Mobile Menu */}
-        {isOpen && (
-          <div className="md:hidden absolute top-full left-0 w-full bg-white shadow-md animate-fade-in">
-            <div className="flex flex-col py-4">
-              {navItems.map((item) => (
-                <div key={item.name} className="px-4 py-2">
-                  {item.subItems ? (
-                    <div>
-                      <div
-                        className="flex justify-between items-center cursor-pointer"
-                        onClick={() => toggleDropdown(item.name)}
-                      >
-                        <span className="text-navy">{item.name}</span>
-                        <ChevronDown 
-                          size={16} 
-                          className={`transition-transform ${
-                            activeDropdown === item.name ? 'rotate-180' : ''
-                          }`} 
-                        />
-                      </div>
-                      
-                      {activeDropdown === item.name && (
-                        <div className="mt-2 ml-4 border-l-2 border-beige pl-2">
                           {item.subItems.map((subItem) => (
                             <Link
                               key={subItem.name}
                               to={subItem.path}
-                              className="block py-2 text-navy hover:text-burgundy transition-colors"
-                              onClick={() => setIsOpen(false)}
+                              className="block px-4 py-2 text-gray-700 hover:bg-gray-50 hover:text-burgundy transition-colors flex items-center"
                             >
+                              <ChevronRight size={14} className="mr-1 opacity-0 group-hover:opacity-100 transition-opacity" />
                               {subItem.name}
                             </Link>
                           ))}
-                        </div>
+                        </motion.div>
                       )}
-                    </div>
-                  ) : (
-                    <Link
-                      to={item.path}
-                      className="block text-navy hover:text-burgundy transition-colors"
-                      onClick={() => setIsOpen(false)}
-                    >
-                      {item.name}
-                    </Link>
-                  )}
-                </div>
-              ))}
-            </div>
+                    </AnimatePresence>
+                  </div>
+                ) : (
+                  <Link
+                    to={item.path}
+                    className={`px-2 py-2 link-hover ${location.pathname === item.path ? 'text-burgundy' : 'text-gray-700 hover:text-burgundy'} transition-colors`}
+                  >
+                    {item.name}
+                  </Link>
+                )}
+              </motion.div>
+            ))}
           </div>
-        )}
+
+          {/* Mobile Menu Button */}
+          <motion.button
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="md:hidden text-navy focus:outline-none"
+            onClick={() => setIsOpen(!isOpen)}
+          >
+            {isOpen ? <X size={24} /> : <Menu size={24} />}
+          </motion.button>
+        </div>
+
+        {/* Mobile Menu */}
+        <AnimatePresence>
+          {isOpen && (
+            <motion.div 
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.3 }}
+              className="md:hidden overflow-hidden bg-white shadow-lg mt-4 rounded-lg"
+            >
+              <div className="flex flex-col py-4">
+                {navItems.map((item) => (
+                  <div key={item.name} className="px-4 py-2">
+                    {item.subItems ? (
+                      <div>
+                        <div
+                          className="flex justify-between items-center cursor-pointer"
+                          onClick={() => toggleDropdown(item.name)}
+                        >
+                          <span className="text-navy font-medium">{item.name}</span>
+                          <ChevronDown 
+                            size={16} 
+                            className={`transition-transform duration-300 ${
+                              activeDropdown === item.name ? 'rotate-180' : ''
+                            }`} 
+                          />
+                        </div>
+                        
+                        <AnimatePresence>
+                          {activeDropdown === item.name && (
+                            <motion.div 
+                              initial={{ opacity: 0, height: 0 }}
+                              animate={{ opacity: 1, height: 'auto' }}
+                              exit={{ opacity: 0, height: 0 }}
+                              transition={{ duration: 0.3 }}
+                              className="mt-2 ml-4 border-l-2 border-burgundy/30 pl-4"
+                            >
+                              {item.subItems.map((subItem) => (
+                                <Link
+                                  key={subItem.name}
+                                  to={subItem.path}
+                                  className="block py-2 text-navy hover:text-burgundy transition-colors"
+                                >
+                                  {subItem.name}
+                                </Link>
+                              ))}
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                      </div>
+                    ) : (
+                      <Link
+                        to={item.path}
+                        className={`block py-1 ${location.pathname === item.path ? 'text-burgundy font-medium' : 'text-navy hover:text-burgundy'} transition-colors`}
+                      >
+                        {item.name}
+                      </Link>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </nav>
   );

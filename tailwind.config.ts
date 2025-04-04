@@ -25,12 +25,13 @@ export default {
 				ring: 'hsl(var(--ring))',
 				background: 'hsl(var(--background))',
 				foreground: 'hsl(var(--foreground))',
-                // Custom colors
-                navy: '#1A2238',
-                burgundy: '#9D2933',
-                beige: '#F2E8DC',
-                gold: '#BF9B30',
-                ivory: '#FFFFF0',
+                // Updated brand colors based on the logo
+                navy: '#2E2A72', // Darker blue from logo
+                burgundy: '#E93844', // Red from logo
+                lightblue: '#4B44B5', // Lighter blue accent
+                beige: '#F7F6F1', // Light background color
+                gold: '#D4AF37', // Accent color
+                ivory: '#FFFFF8',
 				primary: {
 					DEFAULT: 'hsl(var(--primary))',
 					foreground: 'hsl(var(--primary-foreground))'
@@ -106,11 +107,42 @@ export default {
                         transform: 'translateY(0)'
                     }
                 },
+                'fade-in-right': {
+                    '0%': {
+                        opacity: '0',
+                        transform: 'translateX(20px)'
+                    },
+                    '100%': {
+                        opacity: '1',
+                        transform: 'translateX(0)'
+                    }
+                },
+                'zoom-in': {
+                    '0%': {
+                        opacity: '0',
+                        transform: 'scale(0.95)'
+                    },
+                    '100%': {
+                        opacity: '1',
+                        transform: 'scale(1)'
+                    }
+                },
+                'bounce-subtle': {
+                    '0%, 100%': {
+                        transform: 'translateY(0)'
+                    },
+                    '50%': {
+                        transform: 'translateY(-5px)'
+                    }
+                },
 			},
 			animation: {
 				'accordion-down': 'accordion-down 0.2s ease-out',
 				'accordion-up': 'accordion-up 0.2s ease-out',
                 'fade-in': 'fade-in 0.5s ease-out',
+                'fade-in-right': 'fade-in-right 0.5s ease-out',
+                'zoom-in': 'zoom-in 0.5s ease-out',
+                'bounce-subtle': 'bounce-subtle 2s ease-in-out infinite',
 			}
 		}
 	},
