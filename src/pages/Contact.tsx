@@ -2,8 +2,9 @@
 import { useState } from 'react';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
-import { MapPin, Mail, Phone, Clock, Send, MessageSquare } from 'lucide-react';
-import { useToast } from "@/components/ui/use-toast";
+import { MapPin, Mail, Phone, Clock, MessageSquare } from 'lucide-react';
+import { useToast } from "@/hooks/use-toast";
+import GoogleReviewPopup from '@/components/GoogleReviewPopup';
 
 const Contact = () => {
   const { toast } = useToast();
@@ -49,6 +50,9 @@ const Contact = () => {
       message: '',
     });
   };
+
+  // Team description for Google review popup
+  const teamDescription = "At Arihant 4Man, our expert team provides premium fabrics and tailoring services. We pride ourselves on quality craftsmanship and customer satisfaction. Share your experience with us!";
 
   return (
     <>
@@ -257,6 +261,12 @@ const Contact = () => {
         </section>
       </main>
       <Footer />
+      
+      {/* Google Review Popup */}
+      <GoogleReviewPopup 
+        reviewLink="https://maps.app.goo.gl/YRTC68gbQFmirWG67" 
+        teamDescription={teamDescription} 
+      />
     </>
   );
 };
