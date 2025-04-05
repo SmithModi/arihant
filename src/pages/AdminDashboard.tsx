@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Search, Plus, Trash, Edit, ChevronUp, ChevronDown } from 'lucide-react';
@@ -79,7 +78,7 @@ const AdminDashboard = () => {
           console.error('Error checking admin status:', error);
           setIsAdmin(false);
         } else {
-          setIsAdmin(data?.is_admin || false);
+          setIsAdmin(data?.is_admin ?? false);
         }
       } catch (error) {
         console.error('Error checking admin status:', error);
@@ -91,16 +90,6 @@ const AdminDashboard = () => {
 
     checkAdminStatus();
   }, [user]);
-
-  // If not authenticated or not admin, redirect to login
-  if (!isLoading && (!isAuthenticated || !isAdmin)) {
-    toast({
-      title: "Access denied",
-      description: "You must be an administrator to access this page.",
-      variant: "destructive"
-    });
-    return <Navigate to="/login" state={{ from: { pathname: '/admin' } }} />;
-  }
 
   // Sort and filter products
   const filteredProducts = products
@@ -151,6 +140,16 @@ const AdminDashboard = () => {
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-navy"></div>
       </div>
     );
+  }
+
+  // If not authenticated or not admin, redirect to login
+  if (!isLoading && (!isAuthenticated || !isAdmin)) {
+    toast({
+      title: "Access denied",
+      description: "You must be an administrator to access this page.",
+      variant: "destructive"
+    });
+    return <Navigate to="/login" state={{ from: { pathname: '/admin' } }} />;
   }
 
   return (
