@@ -1,10 +1,12 @@
+
 import { useState, useEffect, useRef } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Menu, X, ChevronDown, ChevronRight, ShoppingCart, Heart, User } from 'lucide-react';
+import { Menu, X, ChevronDown, ChevronRight, ShoppingCart, Heart, User, LogIn, UserPlus, LogOut } from 'lucide-react';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useCart } from '@/context/CartContext';
 import { useWishlist } from '@/context/WishlistContext';
+import { useAuth } from '@/context/AuthContext';
 import CartDrawer from './CartDrawer';
 
 const navItems = [
@@ -32,11 +34,14 @@ const Navbar = () => {
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
   const [scrolled, setScrolled] = useState(false);
   const [isCartOpen, setIsCartOpen] = useState(false);
+  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const isMobile = useIsMobile();
   const location = useLocation();
   const navRef = useRef<HTMLDivElement>(null);
+  const userMenuRef = useRef<HTMLDivElement>(null);
   const { itemsCount: cartItemsCount } = useCart();
   const { itemsCount: wishlistItemsCount } = useWishlist();
+  const { user, isAuthenticated, logout } = useAuth();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -51,6 +56,7 @@ const Navbar = () => {
     // Close mobile menu when route changes
     setIsOpen(false);
     setActiveDropdown(null);
+    setIsUserMenuOpen(false);
   }, [location]);
 
   const toggleDropdown = (name: string) => {
@@ -67,11 +73,20 @@ const Navbar = () => {
       if (navRef.current && !navRef.current.contains(event.target as Node) && isOpen) {
         setIsOpen(false);
       }
+      
+      if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node) && isUserMenuOpen) {
+        setIsUserMenuOpen(false);
+      }
     };
 
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [isOpen]);
+  }, [isOpen, isUserMenuOpen]);
+  
+  const handleLogout = () => {
+    logout();
+    setIsUserMenuOpen(false);
+  };
 
   return (
     <>
@@ -164,11 +179,98 @@ const Navbar = () => {
 
             {/* Right side actions */}
             <div className="flex items-center gap-1 md:gap-4">
-              <Link to="/account" className="p-2 text-navy hover:text-burgundy transition-colors relative">
-                <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
-                  <User size={22} />
-                </motion.div>
-              </Link>
+              {isAuthenticated ? (
+                <div className="relative" ref={userMenuRef}>
+                  <button
+                    onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
+                    className="p-2 text-navy hover:text-burgundy transition-colors relative"
+                  >
+                    <motion.div 
+                      whileHover={{ scale: 1.1 }} 
+                      whileTap={{ scale: 0.9 }}
+                      className="relative"
+                    >
+                      <User size={22} />
+                      <span className="absolute bottom-0 right-0 w-2 h-2 bg-green-500 rounded-full"></span>
+                    </motion.div>
+                  </button>
+                  
+                  <AnimatePresence>
+                    {isUserMenuOpen && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                        transition={{ duration: 0.2 }}
+                        className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-10"
+                      >
+                        <div className="px-4 py-2 border-b">
+                          <p className="text-sm font-medium text-gray-900 truncate">{user?.name}</p>
+                          <p className="text-xs text-gray-500 truncate">{user?.email}</p>
+                        </div>
+                        
+                        <Link
+                          to="/account"
+                          className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-burgundy transition-colors"
+                          onClick={() => setIsUserMenuOpen(false)}
+                        >
+                          <div className="flex items-center">
+                            <User size={16} className="mr-2" />
+                            Your Account
+                          </div>
+                        </Link>
+                        
+                        {user?.isAdmin && (
+                          <Link
+                            to="/admin"
+                            className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-burgundy transition-colors"
+                            onClick={() => setIsUserMenuOpen(false)}
+                          >
+                            <div className="flex items-center">
+                              <User size={16} className="mr-2" />
+                              Admin Dashboard
+                            </div>
+                          </Link>
+                        )}
+                        
+                        <button 
+                          onClick={handleLogout}
+                          className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-burgundy transition-colors"
+                        >
+                          <div className="flex items-center">
+                            <LogOut size={16} className="mr-2" />
+                            Logout
+                          </div>
+                        </button>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+              ) : (
+                <div className="hidden sm:flex items-center space-x-2">
+                  <Link to="/login" className="p-2 text-navy hover:text-burgundy transition-colors">
+                    <motion.div 
+                      whileHover={{ scale: 1.1 }} 
+                      whileTap={{ scale: 0.9 }}
+                      className="flex items-center"
+                    >
+                      <LogIn size={18} className="mr-1" />
+                      <span className="text-sm">Login</span>
+                    </motion.div>
+                  </Link>
+                  <Link to="/register" className="p-2 text-navy hover:text-burgundy transition-colors">
+                    <motion.div 
+                      whileHover={{ scale: 1.1 }} 
+                      whileTap={{ scale: 0.9 }}
+                      className="flex items-center"
+                    >
+                      <UserPlus size={18} className="mr-1" />
+                      <span className="text-sm">Register</span>
+                    </motion.div>
+                  </Link>
+                </div>
+              )}
+              
               <Link to="/wishlist" className="p-2 text-navy hover:text-burgundy transition-colors relative">
                 <motion.div whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
                   <Heart size={22} />
@@ -281,6 +383,58 @@ const Navbar = () => {
                       )}
                     </div>
                   ))}
+                  
+                  {/* Add mobile auth links */}
+                  {!isAuthenticated && (
+                    <div className="mt-2 pt-2 border-t border-gray-200 px-4 flex flex-col space-y-2">
+                      <Link
+                        to="/login"
+                        className="flex items-center py-2 text-navy hover:text-burgundy transition-colors"
+                      >
+                        <LogIn size={18} className="mr-2" />
+                        Login
+                      </Link>
+                      <Link
+                        to="/register"
+                        className="flex items-center py-2 text-navy hover:text-burgundy transition-colors"
+                      >
+                        <UserPlus size={18} className="mr-2" />
+                        Register
+                      </Link>
+                    </div>
+                  )}
+                  
+                  {isAuthenticated && (
+                    <div className="mt-2 pt-2 border-t border-gray-200 px-4 flex flex-col space-y-2">
+                      <div className="py-2">
+                        <p className="font-medium text-navy">{user?.name}</p>
+                        <p className="text-sm text-gray-500">{user?.email}</p>
+                      </div>
+                      <Link
+                        to="/account"
+                        className="flex items-center py-2 text-navy hover:text-burgundy transition-colors"
+                      >
+                        <User size={18} className="mr-2" />
+                        Your Account
+                      </Link>
+                      {user?.isAdmin && (
+                        <Link
+                          to="/admin"
+                          className="flex items-center py-2 text-navy hover:text-burgundy transition-colors"
+                        >
+                          <User size={18} className="mr-2" />
+                          Admin Dashboard
+                        </Link>
+                      )}
+                      <button 
+                        onClick={handleLogout}
+                        className="flex items-center py-2 text-navy hover:text-burgundy transition-colors"
+                      >
+                        <LogOut size={18} className="mr-2" />
+                        Logout
+                      </button>
+                    </div>
+                  )}
                 </div>
               </motion.div>
             )}

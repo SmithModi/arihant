@@ -1,6 +1,7 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { toast } from '@/hooks/use-toast';
+import { useAuth } from './AuthContext';
 
 export interface WishlistItem {
   id: string;
@@ -23,26 +24,43 @@ const WishlistContext = createContext<WishlistContextType | undefined>(undefined
 export const WishlistProvider = ({ children }: { children: React.ReactNode }) => {
   const [items, setItems] = useState<WishlistItem[]>([]);
   const [initialized, setInitialized] = useState(false);
+  const { user } = useAuth();
   
-  // Load wishlist from localStorage on mount
+  // Function to get the appropriate wishlist key based on authentication status
+  const getWishlistKey = () => {
+    return user ? `wishlist_${user.email}` : 'wishlist';
+  };
+  
+  // Load wishlist from localStorage on mount or when user changes
   useEffect(() => {
-    const savedWishlist = localStorage.getItem('wishlist');
+    const wishlistKey = getWishlistKey();
+    const savedWishlist = localStorage.getItem(wishlistKey);
+    
     if (savedWishlist) {
       try {
         setItems(JSON.parse(savedWishlist));
       } catch (error) {
-        console.error('Failed to parse wishlist from localStorage:', error);
+        console.error(`Failed to parse wishlist from localStorage (${wishlistKey}):`, error);
       }
+    } else {
+      setItems([]);
     }
+    
     setInitialized(true);
-  }, []);
+  }, [user]);
   
   // Save wishlist to localStorage whenever it changes
   useEffect(() => {
     if (initialized) {
-      localStorage.setItem('wishlist', JSON.stringify(items));
+      const wishlistKey = getWishlistKey();
+      localStorage.setItem(wishlistKey, JSON.stringify(items));
+      
+      // Also update the current wishlist for non-authenticated sessions
+      if (!user) {
+        localStorage.setItem('wishlist', JSON.stringify(items));
+      }
     }
-  }, [items, initialized]);
+  }, [items, initialized, user]);
 
   const addItem = (item: WishlistItem) => {
     setItems(prevItems => {
