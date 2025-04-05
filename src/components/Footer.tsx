@@ -1,11 +1,15 @@
 
 import { Link } from 'react-router-dom';
-import { Facebook, Instagram, Twitter, Mail, Phone, MapPin, ChevronRight, ArrowUp } from 'lucide-react';
+import { Facebook, Instagram, Twitter, Mail, Phone, MapPin, ChevronRight, ArrowUp, MessageSquare } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 const Footer = () => {
   const scrollToTop = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const openWhatsApp = () => {
+    window.open('https://wa.me/916352711793', '_blank');
   };
 
   return (
@@ -38,16 +42,11 @@ const Footer = () => {
             transition={{ duration: 0.5 }}
           >
             <Link to="/" className="inline-block">
-              <div className="flex items-center">
-                <div className="relative h-10 w-14 mr-2">
-                  <div className="absolute inset-0 bg-white rounded-lg transform rotate-12"></div>
-                  <div className="absolute inset-0 flex items-center justify-center text-2xl font-bold text-navy">4</div>
-                </div>
-                <div className="font-playfair font-bold">
-                  <span className="text-burgundy text-2xl">man</span>
-                  <div className="text-xs text-gray-300 -mt-1">A MARWADI SHOP</div>
-                </div>
-              </div>
+              <img 
+                src="/lovable-uploads/657a4e63-b8b2-49ff-891a-6fc0bf7d249a.png" 
+                alt="4man Logo" 
+                className="h-14 mb-3"
+              />
             </Link>
             <p className="text-gray-300 mt-4">
               Premium fabrics and bespoke tailoring services since 1987. Crafting elegance for every occasion.
@@ -62,6 +61,13 @@ const Footer = () => {
               <a href="https://twitter.com" className="bg-white/10 hover:bg-burgundy text-white p-2 rounded-full transition-colors" aria-label="Twitter">
                 <Twitter size={18} />
               </a>
+              <button 
+                onClick={openWhatsApp}
+                className="bg-white/10 hover:bg-green-600 text-white p-2 rounded-full transition-colors" 
+                aria-label="WhatsApp"
+              >
+                <MessageSquare size={18} />
+              </button>
             </div>
           </motion.div>
 
@@ -139,15 +145,23 @@ const Footer = () => {
             <ul className="space-y-4">
               <li className="flex items-start">
                 <MapPin size={20} className="mt-1 mr-3 shrink-0 text-burgundy" />
-                <span>123 Fashion Street, Design District, Mumbai - 400001</span>
+                <span>1st Floor, City Center, 105-108, Divanpara Main Rd, opp. old khadpith, Gujari Bazar, Diwanpara, Rajkot, Gujarat 360005</span>
               </li>
               <li className="flex items-center">
                 <Phone size={18} className="mr-3 shrink-0 text-burgundy" />
-                <a href="tel:+919876543210" className="hover:text-burgundy transition-colors">+91 98765 43210</a>
+                <a href="tel:+919913323064" className="hover:text-burgundy transition-colors">+91 99133 23064</a>
               </li>
               <li className="flex items-center">
                 <Mail size={18} className="mr-3 shrink-0 text-burgundy" />
                 <a href="mailto:info@arihant4man.com" className="hover:text-burgundy transition-colors">info@arihant4man.com</a>
+              </li>
+              <li>
+                <button 
+                  onClick={openWhatsApp} 
+                  className="mt-2 flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md transition-all"
+                >
+                  <MessageSquare size={16} /> Chat on WhatsApp
+                </button>
               </li>
             </ul>
             

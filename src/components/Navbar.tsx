@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useRef } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Menu, X, ChevronDown, ChevronRight, ShoppingCart, Heart, User } from 'lucide-react';
@@ -85,28 +84,11 @@ const Navbar = () => {
         <div className="container mx-auto px-4 lg:px-8">
           <div className="flex justify-between items-center">
             <Link to="/" className="flex items-center">
-              <motion.div
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.5 }}
-                className="flex items-center"
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-              >
-                <div className="relative h-10 w-14 mr-2 overflow-hidden">
-                  <motion.div 
-                    className="absolute inset-0 bg-navy rounded-lg"
-                    initial={{ rotate: 0 }}
-                    whileHover={{ rotate: 12 }}
-                    transition={{ type: "spring", stiffness: 300, damping: 15 }}
-                  ></motion.div>
-                  <div className="absolute inset-0 flex items-center justify-center text-2xl font-bold text-white">4</div>
-                </div>
-                <div className="font-playfair font-bold">
-                  <span className="text-burgundy text-2xl">man</span>
-                  {!isMobile && <div className="text-xs text-gray-500 -mt-1">A MARWADI SHOP</div>}
-                </div>
-              </motion.div>
+              <img 
+                src="/lovable-uploads/657a4e63-b8b2-49ff-891a-6fc0bf7d249a.png" 
+                alt="4man Logo" 
+                className="h-11 md:h-12"
+              />
             </Link>
 
             {/* Desktop Navigation */}
