@@ -47,11 +47,19 @@ const Register = () => {
       return false;
     }
     
-    // Check if user already exists
-    const userExists = await checkUserExists(email);
-    if (userExists) {
-      setError('An account with this email already exists. Please sign in instead.');
+    // Special case for admin account
+    if (email === 'admin@myshop.com' && password !== 'Admin@123') {
+      setError('The admin account requires a specific password');
       return false;
+    }
+    
+    // For non-admin accounts, check if user already exists
+    if (email !== 'admin@myshop.com') {
+      const userExists = await checkUserExists(email);
+      if (userExists) {
+        setError('An account with this email already exists. Please sign in instead.');
+        return false;
+      }
     }
     
     // Validate password
@@ -83,7 +91,21 @@ const Register = () => {
       
       const success = await register(name, email, password);
       if (success) {
-        navigate('/');
+        if (email === 'admin@myshop.com') {
+          // If admin, show special message and redirect to admin dashboard
+          toast({
+            title: "Admin account created",
+            description: "You have created the admin account. Please confirm your email and log in.",
+          });
+          navigate('/login');
+        } else {
+          // For regular users, just show the regular message
+          toast({
+            title: "Account created",
+            description: "Please check your email to confirm your account before logging in.",
+          });
+          navigate('/login');
+        }
       }
     } finally {
       setIsSubmitting(false);

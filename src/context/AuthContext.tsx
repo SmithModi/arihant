@@ -113,12 +113,39 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       });
 
       if (error) {
-        toast({
-          title: "Login failed",
-          description: error.message,
-          variant: "destructive",
-        });
+        // Check if the error is related to email confirmation
+        if (error.message.includes('Email not confirmed')) {
+          toast({
+            title: "Login failed",
+            description: "Please confirm your email before logging in.",
+            variant: "destructive",
+          });
+        } else {
+          toast({
+            title: "Login failed",
+            description: error.message,
+            variant: "destructive",
+          });
+        }
         return false;
+      }
+
+      // Check if the user is the admin
+      if (email === 'admin@myshop.com') {
+        // Set admin metadata
+        await supabase.auth.updateUser({
+          data: { is_admin: true }
+        });
+        
+        // Update profile in database
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .update({ is_admin: true })
+          .eq('id', data.user?.id);
+          
+        if (profileError) {
+          console.error('Error updating admin status:', profileError);
+        }
       }
 
       return true;
@@ -140,12 +167,32 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     setIsLoading(true);
 
     try {
+      // Create admin account with hardcoded credentials if it doesn't exist
+      if (email === 'admin@myshop.com') {
+        const { data: adminCheckData } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('email', 'admin@myshop.com')
+          .maybeSingle();
+        
+        if (adminCheckData) {
+          toast({
+            title: "Registration failed",
+            description: "Admin account already exists.",
+            variant: "destructive",
+          });
+          return false;
+        }
+      }
+
+      // Regular signup process
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
           data: {
             name,
+            is_admin: email === 'admin@myshop.com' ? true : false
           },
         }
       });

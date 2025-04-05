@@ -2,6 +2,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { toast } from '@/hooks/use-toast';
 import { useAuth } from './AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 
 export interface WishlistItem {
   id: string;
@@ -24,7 +25,7 @@ const WishlistContext = createContext<WishlistContextType | undefined>(undefined
 export const WishlistProvider = ({ children }: { children: React.ReactNode }) => {
   const [items, setItems] = useState<WishlistItem[]>([]);
   const [initialized, setInitialized] = useState(false);
-  const { user } = useAuth();
+  const { user, isAuthenticated } = useAuth();
   
   // Function to get the appropriate wishlist key based on authentication status
   const getWishlistKey = () => {
@@ -33,34 +34,105 @@ export const WishlistProvider = ({ children }: { children: React.ReactNode }) =>
   
   // Load wishlist from localStorage on mount or when user changes
   useEffect(() => {
-    const wishlistKey = getWishlistKey();
-    const savedWishlist = localStorage.getItem(wishlistKey);
-    
-    if (savedWishlist) {
-      try {
-        setItems(JSON.parse(savedWishlist));
-      } catch (error) {
-        console.error(`Failed to parse wishlist from localStorage (${wishlistKey}):`, error);
+    const loadWishlist = async () => {
+      if (user && isAuthenticated) {
+        try {
+          // Try to fetch wishlist from Supabase first
+          const { data, error } = await supabase
+            .from('wishlists')
+            .select('items')
+            .eq('user_id', user.id)
+            .maybeSingle();
+          
+          if (data && data.items) {
+            // Use data from Supabase
+            setItems(data.items);
+          } else {
+            // Fallback to localStorage if no data in Supabase
+            const wishlistKey = getWishlistKey();
+            const savedWishlist = localStorage.getItem(wishlistKey);
+            
+            if (savedWishlist) {
+              const parsedItems = JSON.parse(savedWishlist);
+              setItems(parsedItems);
+              
+              // Save to Supabase for future use
+              await supabase.from('wishlists').upsert({
+                user_id: user.id,
+                items: parsedItems
+              });
+            } else {
+              setItems([]);
+            }
+          }
+        } catch (error) {
+          console.error('Error loading wishlist from Supabase:', error);
+          // Fallback to localStorage
+          const wishlistKey = getWishlistKey();
+          const savedWishlist = localStorage.getItem(wishlistKey);
+          
+          if (savedWishlist) {
+            try {
+              setItems(JSON.parse(savedWishlist));
+            } catch (e) {
+              console.error(`Failed to parse wishlist from localStorage:`, e);
+              setItems([]);
+            }
+          } else {
+            setItems([]);
+          }
+        }
+      } else {
+        // Not authenticated, use localStorage only
+        const wishlistKey = 'wishlist';
+        const savedWishlist = localStorage.getItem(wishlistKey);
+        
+        if (savedWishlist) {
+          try {
+            setItems(JSON.parse(savedWishlist));
+          } catch (e) {
+            console.error(`Failed to parse wishlist from localStorage:`, e);
+            setItems([]);
+          }
+        } else {
+          setItems([]);
+        }
       }
-    } else {
-      setItems([]);
-    }
+      
+      setInitialized(true);
+    };
     
-    setInitialized(true);
-  }, [user]);
+    loadWishlist();
+  }, [user, isAuthenticated]);
   
-  // Save wishlist to localStorage whenever it changes
+  // Save wishlist to localStorage and Supabase whenever it changes
   useEffect(() => {
-    if (initialized) {
+    if (!initialized) return;
+    
+    const saveWishlist = async () => {
       const wishlistKey = getWishlistKey();
       localStorage.setItem(wishlistKey, JSON.stringify(items));
+      
+      // Save to Supabase if authenticated
+      if (user && isAuthenticated) {
+        try {
+          await supabase.from('wishlists').upsert({
+            user_id: user.id,
+            items: items
+          });
+        } catch (error) {
+          console.error('Error saving wishlist to Supabase:', error);
+        }
+      }
       
       // Also update the current wishlist for non-authenticated sessions
       if (!user) {
         localStorage.setItem('wishlist', JSON.stringify(items));
       }
-    }
-  }, [items, initialized, user]);
+    };
+    
+    saveWishlist();
+  }, [items, initialized, user, isAuthenticated]);
 
   const addItem = (item: WishlistItem) => {
     setItems(prevItems => {

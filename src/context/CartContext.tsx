@@ -2,6 +2,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { toast } from '@/hooks/use-toast';
 import { useAuth } from './AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 
 export interface CartItem {
   id: string;
@@ -26,43 +27,114 @@ const CartContext = createContext<CartContextType | undefined>(undefined);
 export const CartProvider = ({ children }: { children: React.ReactNode }) => {
   const [items, setItems] = useState<CartItem[]>([]);
   const [initialized, setInitialized] = useState(false);
-  const { user } = useAuth();
+  const { user, isAuthenticated } = useAuth();
   
   // Function to get the appropriate cart key based on authentication status
   const getCartKey = () => {
     return user ? `cart_${user.email}` : 'cart';
   };
   
-  // Load cart from localStorage on mount or when user changes
+  // Load cart from localStorage and Supabase on mount or when user changes
   useEffect(() => {
-    const cartKey = getCartKey();
-    const savedCart = localStorage.getItem(cartKey);
-    
-    if (savedCart) {
-      try {
-        setItems(JSON.parse(savedCart));
-      } catch (error) {
-        console.error(`Failed to parse cart from localStorage (${cartKey}):`, error);
+    const loadCart = async () => {
+      if (user && isAuthenticated) {
+        try {
+          // Try to fetch cart from Supabase first
+          const { data, error } = await supabase
+            .from('carts')
+            .select('items')
+            .eq('user_id', user.id)
+            .maybeSingle();
+          
+          if (data && data.items) {
+            // Use data from Supabase
+            setItems(data.items);
+          } else {
+            // Fallback to localStorage if no data in Supabase
+            const cartKey = getCartKey();
+            const savedCart = localStorage.getItem(cartKey);
+            
+            if (savedCart) {
+              const parsedItems = JSON.parse(savedCart);
+              setItems(parsedItems);
+              
+              // Save to Supabase for future use
+              await supabase.from('carts').upsert({
+                user_id: user.id,
+                items: parsedItems
+              });
+            } else {
+              setItems([]);
+            }
+          }
+        } catch (error) {
+          console.error('Error loading cart from Supabase:', error);
+          // Fallback to localStorage
+          const cartKey = getCartKey();
+          const savedCart = localStorage.getItem(cartKey);
+          
+          if (savedCart) {
+            try {
+              setItems(JSON.parse(savedCart));
+            } catch (e) {
+              console.error(`Failed to parse cart from localStorage:`, e);
+              setItems([]);
+            }
+          } else {
+            setItems([]);
+          }
+        }
+      } else {
+        // Not authenticated, use localStorage only
+        const cartKey = 'cart';
+        const savedCart = localStorage.getItem(cartKey);
+        
+        if (savedCart) {
+          try {
+            setItems(JSON.parse(savedCart));
+          } catch (e) {
+            console.error(`Failed to parse cart from localStorage:`, e);
+            setItems([]);
+          }
+        } else {
+          setItems([]);
+        }
       }
-    } else {
-      setItems([]);
-    }
+      
+      setInitialized(true);
+    };
     
-    setInitialized(true);
-  }, [user]);
+    loadCart();
+  }, [user, isAuthenticated]);
   
-  // Save cart to localStorage whenever it changes
+  // Save cart to localStorage and Supabase whenever it changes
   useEffect(() => {
-    if (initialized) {
+    if (!initialized) return;
+    
+    const saveCart = async () => {
       const cartKey = getCartKey();
       localStorage.setItem(cartKey, JSON.stringify(items));
+      
+      // Save to Supabase if authenticated
+      if (user && isAuthenticated) {
+        try {
+          await supabase.from('carts').upsert({
+            user_id: user.id,
+            items: items
+          });
+        } catch (error) {
+          console.error('Error saving cart to Supabase:', error);
+        }
+      }
       
       // Also update the current cart for non-authenticated sessions
       if (!user) {
         localStorage.setItem('cart', JSON.stringify(items));
       }
-    }
-  }, [items, initialized, user]);
+    };
+    
+    saveCart();
+  }, [items, initialized, user, isAuthenticated]);
 
   const addItem = (item: CartItem) => {
     setItems(prevItems => {

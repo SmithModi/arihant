@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -26,9 +25,15 @@ const Login = () => {
   // Redirect if already authenticated
   useEffect(() => {
     if (isAuthenticated) {
-      navigate(from, { replace: true });
+      // If this is the admin, redirect to admin dashboard
+      if (email === 'admin@myshop.com') {
+        navigate('/admin', { replace: true });
+      } else {
+        // Otherwise redirect to the from path or home
+        navigate(from, { replace: true });
+      }
     }
-  }, [isAuthenticated, navigate, from]);
+  }, [isAuthenticated, navigate, from, email]);
   
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -47,8 +52,12 @@ const Login = () => {
     try {
       const success = await login(email, password);
       if (success) {
-        // Navigate to the page the user was trying to access or home
-        navigate(from, { replace: true });
+        // Navigate to the admin dashboard if admin, otherwise to the page the user was trying to access
+        if (email === 'admin@myshop.com') {
+          navigate('/admin', { replace: true });
+        } else {
+          navigate(from, { replace: true });
+        }
       }
     } finally {
       setIsSubmitting(false);

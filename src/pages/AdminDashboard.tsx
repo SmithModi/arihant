@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Search, Plus, Trash, Edit, ChevronUp, ChevronDown } from 'lucide-react';
@@ -23,18 +24,10 @@ interface Product {
   price: number;
   category: string;
   stock: number;
+  description?: string;
+  image?: string;
+  rating?: number;
 }
-
-// Sample product data
-const sampleProducts = [
-  { id: '1', name: 'Premium Linen Fabric', price: 1500, category: 'Fabrics', stock: 45 },
-  { id: '2', name: 'Wedding Sherwani', price: 25000, category: 'Wedding Suites', stock: 12 },
-  { id: '3', name: 'Formal Business Suit', price: 12000, category: 'Formal Attires', stock: 20 },
-  { id: '4', name: 'Father-Son Combo', price: 15000, category: 'Theme Attires', stock: 8 },
-  { id: '5', name: 'Hotel Staff Uniform', price: 3500, category: 'Uniforms', stock: 30 },
-  { id: '6', name: 'Cotton Jeans', price: 2000, category: 'Ready to Wear', stock: 50 },
-  { id: '7', name: 'Shirt Pattern Template', price: 500, category: 'Patterns', stock: 25 },
-];
 
 const categories = [
   'All',
@@ -53,9 +46,59 @@ const AdminDashboard = () => {
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [sortField, setSortField] = useState<string | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
-  const [products, setProducts] = useState<Product[]>(sampleProducts);
+  const [products, setProducts] = useState<Product[]>([]);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  
+  // Modal states
+  const [showModal, setShowModal] = useState(false);
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [newProduct, setNewProduct] = useState<Partial<Product>>({
+    name: '',
+    price: 0,
+    category: 'Fabrics',
+    stock: 0,
+    description: '',
+    image: '',
+    rating: 5
+  });
+
+  // Fetch products from Supabase
+  const fetchProducts = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('products')
+        .select('*');
+      
+      if (error) {
+        throw error;
+      }
+      
+      if (data) {
+        setProducts(data);
+      }
+    } catch (error) {
+      console.error('Error fetching products:', error);
+      toast({
+        title: "Failed to load products",
+        description: "Please try again later",
+        variant: "destructive"
+      });
+      
+      // Set sample products as fallback
+      setProducts([
+        { id: '1', name: 'Premium Linen Fabric', price: 1500, category: 'Fabrics', stock: 45 },
+        { id: '2', name: 'Wedding Sherwani', price: 25000, category: 'Wedding Suites', stock: 12 },
+        { id: '3', name: 'Formal Business Suit', price: 12000, category: 'Formal Attires', stock: 20 },
+        { id: '4', name: 'Father-Son Combo', price: 15000, category: 'Theme Attires', stock: 8 },
+        { id: '5', name: 'Hotel Staff Uniform', price: 3500, category: 'Uniforms', stock: 30 },
+        { id: '6', name: 'Cotton Jeans', price: 2000, category: 'Ready to Wear', stock: 50 },
+        { id: '7', name: 'Shirt Pattern Template', price: 500, category: 'Patterns', stock: 25 },
+      ]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   // Check if user is admin
   useEffect(() => {
@@ -72,7 +115,7 @@ const AdminDashboard = () => {
           .from('profiles')
           .select('is_admin')
           .eq('id', user.id)
-          .single();
+          .maybeSingle();
 
         if (error) {
           console.error('Error checking admin status:', error);
@@ -89,6 +132,7 @@ const AdminDashboard = () => {
     };
 
     checkAdminStatus();
+    fetchProducts();
   }, [user]);
 
   // Sort and filter products
@@ -133,6 +177,137 @@ const AdminDashboard = () => {
     );
   };
 
+  // Handle adding a new product
+  const handleAddProduct = async () => {
+    try {
+      if (!newProduct.name || !newProduct.price) {
+        toast({
+          title: "Validation error",
+          description: "Name and price are required fields",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from('products')
+        .insert({
+          name: newProduct.name,
+          price: newProduct.price,
+          category: newProduct.category,
+          stock: newProduct.stock || 0,
+          description: newProduct.description,
+          image: newProduct.image,
+          rating: newProduct.rating
+        })
+        .select();
+
+      if (error) throw error;
+
+      toast({
+        title: "Product added",
+        description: "The product has been added successfully"
+      });
+
+      // Add the new product to the local state
+      if (data && data[0]) {
+        setProducts(prev => [...prev, data[0]]);
+      }
+
+      // Reset the form and close the modal
+      setNewProduct({
+        name: '',
+        price: 0,
+        category: 'Fabrics',
+        stock: 0,
+        description: '',
+        image: '',
+        rating: 5
+      });
+      setShowModal(false);
+    } catch (error) {
+      console.error('Error adding product:', error);
+      toast({
+        title: "Failed to add product",
+        description: "Please try again later",
+        variant: "destructive"
+      });
+    }
+  };
+
+  // Handle updating an existing product
+  const handleUpdateProduct = async () => {
+    try {
+      if (!editingProduct) return;
+
+      const { data, error } = await supabase
+        .from('products')
+        .update({
+          name: editingProduct.name,
+          price: editingProduct.price,
+          category: editingProduct.category,
+          stock: editingProduct.stock,
+          description: editingProduct.description,
+          image: editingProduct.image,
+          rating: editingProduct.rating
+        })
+        .eq('id', editingProduct.id)
+        .select();
+
+      if (error) throw error;
+
+      toast({
+        title: "Product updated",
+        description: "The product has been updated successfully"
+      });
+
+      // Update the product in the local state
+      if (data && data[0]) {
+        setProducts(prev => prev.map(p => p.id === editingProduct.id ? data[0] : p));
+      }
+
+      // Reset and close the modal
+      setEditingProduct(null);
+      setShowModal(false);
+    } catch (error) {
+      console.error('Error updating product:', error);
+      toast({
+        title: "Failed to update product",
+        description: "Please try again later",
+        variant: "destructive"
+      });
+    }
+  };
+
+  // Handle deleting a product
+  const handleDeleteProduct = async (productId: string) => {
+    try {
+      if (!confirm("Are you sure you want to delete this product?")) return;
+
+      const { error } = await supabase
+        .from('products')
+        .delete()
+        .eq('id', productId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Product deleted",
+        description: "The product has been deleted successfully"
+      });
+
+      // Remove the product from the local state
+      setProducts(prev => prev.filter(p => p.id !== productId));
+    } catch (error) {
+      console.error('Error deleting product:', error);
+      toast({
+        title: "Failed to delete product",
+        description: "Please try again later",
+        variant: "destructive"
+      });
+    }
+  };
+
   // Loading state
   if (isLoading) {
     return (
@@ -165,7 +340,13 @@ const AdminDashboard = () => {
             <h1 className="text-3xl font-playfair font-bold text-navy">Admin Dashboard</h1>
             <p className="text-gray-500">Manage your products and inventory</p>
           </div>
-          <Button className="bg-burgundy hover:bg-burgundy/90 flex items-center">
+          <Button 
+            className="bg-burgundy hover:bg-burgundy/90 flex items-center"
+            onClick={() => {
+              setShowModal(true);
+              setEditingProduct(null);
+            }}
+          >
             <Plus size={16} className="mr-1" /> Add New Product
           </Button>
         </motion.div>
@@ -321,6 +502,10 @@ const AdminDashboard = () => {
                             className="p-1 text-navy hover:text-burgundy transition-colors"
                             whileHover={{ scale: 1.1 }}
                             whileTap={{ scale: 0.9 }}
+                            onClick={() => {
+                              setEditingProduct(product);
+                              setShowModal(true);
+                            }}
                           >
                             <Edit size={16} />
                           </motion.button>
@@ -328,6 +513,7 @@ const AdminDashboard = () => {
                             className="p-1 text-red-500 hover:text-red-700 transition-colors"
                             whileHover={{ scale: 1.1 }}
                             whileTap={{ scale: 0.9 }}
+                            onClick={() => handleDeleteProduct(product.id)}
                           >
                             <Trash size={16} />
                           </motion.button>
@@ -341,6 +527,161 @@ const AdminDashboard = () => {
           </div>
         </motion.div>
       </div>
+
+      {/* Product Add/Edit Modal */}
+      {showModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto">
+            <h2 className="text-xl font-bold text-navy mb-4">
+              {editingProduct ? 'Edit Product' : 'Add New Product'}
+            </h2>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Product Name</label>
+                <input
+                  type="text"
+                  value={editingProduct ? editingProduct.name : newProduct.name}
+                  onChange={(e) => {
+                    if (editingProduct) {
+                      setEditingProduct({...editingProduct, name: e.target.value});
+                    } else {
+                      setNewProduct({...newProduct, name: e.target.value});
+                    }
+                  }}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-burgundy"
+                  required
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Price (₹)</label>
+                <input
+                  type="number"
+                  value={editingProduct ? editingProduct.price : newProduct.price}
+                  onChange={(e) => {
+                    const value = Number(e.target.value);
+                    if (editingProduct) {
+                      setEditingProduct({...editingProduct, price: value});
+                    } else {
+                      setNewProduct({...newProduct, price: value});
+                    }
+                  }}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-burgundy"
+                  required
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
+                <select
+                  value={editingProduct ? editingProduct.category : newProduct.category}
+                  onChange={(e) => {
+                    if (editingProduct) {
+                      setEditingProduct({...editingProduct, category: e.target.value});
+                    } else {
+                      setNewProduct({...newProduct, category: e.target.value});
+                    }
+                  }}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-burgundy"
+                >
+                  {categories.filter(c => c !== 'All').map(category => (
+                    <option key={category} value={category}>{category}</option>
+                  ))}
+                </select>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Stock</label>
+                <input
+                  type="number"
+                  value={editingProduct ? editingProduct.stock : newProduct.stock}
+                  onChange={(e) => {
+                    const value = Number(e.target.value);
+                    if (editingProduct) {
+                      setEditingProduct({...editingProduct, stock: value});
+                    } else {
+                      setNewProduct({...newProduct, stock: value});
+                    }
+                  }}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-burgundy"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                <textarea
+                  value={editingProduct ? editingProduct.description || '' : newProduct.description || ''}
+                  onChange={(e) => {
+                    if (editingProduct) {
+                      setEditingProduct({...editingProduct, description: e.target.value});
+                    } else {
+                      setNewProduct({...newProduct, description: e.target.value});
+                    }
+                  }}
+                  rows={3}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-burgundy"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Image URL</label>
+                <input
+                  type="text"
+                  value={editingProduct ? editingProduct.image || '' : newProduct.image || ''}
+                  onChange={(e) => {
+                    if (editingProduct) {
+                      setEditingProduct({...editingProduct, image: e.target.value});
+                    } else {
+                      setNewProduct({...newProduct, image: e.target.value});
+                    }
+                  }}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-burgundy"
+                  placeholder="https://example.com/image.jpg"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Rating (1-5)</label>
+                <input
+                  type="number"
+                  min="1"
+                  max="5"
+                  step="0.1"
+                  value={editingProduct ? editingProduct.rating || 5 : newProduct.rating || 5}
+                  onChange={(e) => {
+                    const value = Number(e.target.value);
+                    if (editingProduct) {
+                      setEditingProduct({...editingProduct, rating: value});
+                    } else {
+                      setNewProduct({...newProduct, rating: value});
+                    }
+                  }}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-burgundy"
+                />
+              </div>
+              
+              <div className="flex justify-end space-x-3 mt-6">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setShowModal(false);
+                    setEditingProduct(null);
+                  }}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  className="bg-burgundy hover:bg-burgundy/90"
+                  onClick={editingProduct ? handleUpdateProduct : handleAddProduct}
+                >
+                  {editingProduct ? 'Update Product' : 'Add Product'}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
