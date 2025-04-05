@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Navigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { User, ShoppingBag, Heart, LogOut, Settings, Edit2 } from 'lucide-react';
@@ -7,6 +7,8 @@ import { Button } from '@/components/ui/button';
 import { useAuth } from '@/context/AuthContext';
 import { useCart } from '@/context/CartContext';
 import { useWishlist } from '@/context/WishlistContext';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from '@/hooks/use-toast';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 
@@ -16,20 +18,56 @@ const Account = () => {
   const { itemsCount: wishlistItemsCount } = useWishlist();
   const [isEditing, setIsEditing] = useState(false);
   const [name, setName] = useState(user?.name || '');
+  const [isLoading, setIsLoading] = useState(false);
   
   // Redirect if not authenticated
   if (!isAuthenticated) {
     return <Navigate to="/login" state={{ from: { pathname: '/account' } }} />;
   }
   
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async () => {
+    await logout();
   };
   
-  const handleUpdateProfile = (e: React.FormEvent) => {
+  const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault();
-    // In a real app, you would update the user's profile here
-    setIsEditing(false);
+    
+    if (!user) return;
+    
+    setIsLoading(true);
+    
+    try {
+      // Update user metadata in auth
+      const { error: updateError } = await supabase.auth.updateUser({
+        data: { name }
+      });
+      
+      if (updateError) throw updateError;
+      
+      // Update the profile in the profiles table
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .update({ name })
+        .eq('id', user.id);
+      
+      if (profileError) throw profileError;
+      
+      toast({
+        title: "Profile updated",
+        description: "Your profile has been successfully updated.",
+      });
+      
+      setIsEditing(false);
+    } catch (error: any) {
+      console.error('Error updating profile:', error);
+      toast({
+        title: "Update failed",
+        description: error.message || "Failed to update profile.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
   
   return (
@@ -139,8 +177,19 @@ const Account = () => {
                     </div>
                     
                     <div className="flex gap-3">
-                      <Button type="submit" className="bg-burgundy hover:bg-burgundy/90">
-                        Save Changes
+                      <Button 
+                        type="submit" 
+                        className="bg-burgundy hover:bg-burgundy/90"
+                        disabled={isLoading}
+                      >
+                        {isLoading ? (
+                          <div className="flex items-center">
+                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                            <span>Saving...</span>
+                          </div>
+                        ) : (
+                          'Save Changes'
+                        )}
                       </Button>
                       <Button 
                         type="button" 

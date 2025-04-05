@@ -1,11 +1,12 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Eye, EyeOff, UserPlus, User, Mail, Lock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/context/AuthContext';
+import { toast } from '@/hooks/use-toast';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import GoogleReviewPopup from '@/components/GoogleReviewPopup';
@@ -19,8 +20,15 @@ const Register = () => {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
-  const { register, checkUserExists, isLoading } = useAuth();
+  const { register, checkUserExists, isLoading, isAuthenticated } = useAuth();
   const navigate = useNavigate();
+  
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate('/');
+    }
+  }, [isAuthenticated, navigate]);
   
   const validateForm = async () => {
     // Reset error
@@ -69,6 +77,7 @@ const Register = () => {
     try {
       const isValid = await validateForm();
       if (!isValid) {
+        setIsSubmitting(false);
         return;
       }
       

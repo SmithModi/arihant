@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Search, Plus, Trash, Edit, ChevronUp, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -12,7 +12,19 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { useAuth } from '@/context/AuthContext';
+import { toast } from '@/hooks/use-toast';
 import { formatPrice } from '@/lib/utils';
+import { Navigate } from 'react-router-dom';
+import { supabase } from '@/integrations/supabase/client';
+
+interface Product {
+  id: string;
+  name: string;
+  price: number;
+  category: string;
+  stock: number;
+}
 
 // Sample product data
 const sampleProducts = [
@@ -37,13 +49,61 @@ const categories = [
 ];
 
 const AdminDashboard = () => {
+  const { user, isAuthenticated } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [sortField, setSortField] = useState<string | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+  const [products, setProducts] = useState<Product[]>(sampleProducts);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Check if user is admin
+  useEffect(() => {
+    const checkAdminStatus = async () => {
+      if (!user) {
+        setIsAdmin(false);
+        setIsLoading(false);
+        return;
+      }
+
+      try {
+        // Check if user is admin by querying the profiles table
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('is_admin')
+          .eq('id', user.id)
+          .single();
+
+        if (error) {
+          console.error('Error checking admin status:', error);
+          setIsAdmin(false);
+        } else {
+          setIsAdmin(data?.is_admin || false);
+        }
+      } catch (error) {
+        console.error('Error checking admin status:', error);
+        setIsAdmin(false);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    checkAdminStatus();
+  }, [user]);
+
+  // If not authenticated or not admin, redirect to login
+  if (!isLoading && (!isAuthenticated || !isAdmin)) {
+    toast({
+      title: "Access denied",
+      description: "You must be an administrator to access this page.",
+      variant: "destructive"
+    });
+    return <Navigate to="/login" state={{ from: { pathname: '/admin' } }} />;
+  }
 
   // Sort and filter products
-  const filteredProducts = sampleProducts
+  const filteredProducts = products
     .filter(product => 
       (selectedCategory === 'All' || product.category === selectedCategory) &&
       product.name.toLowerCase().includes(searchTerm.toLowerCase())
@@ -84,6 +144,15 @@ const AdminDashboard = () => {
     );
   };
 
+  // Loading state
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-navy"></div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 py-20 px-4">
       <div className="max-w-7xl mx-auto">
@@ -113,7 +182,7 @@ const AdminDashboard = () => {
                 <CardTitle className="text-sm font-medium text-gray-500">Total Products</CardTitle>
               </CardHeader>
               <CardContent>
-                <h3 className="text-3xl font-bold text-navy">{sampleProducts.length}</h3>
+                <h3 className="text-3xl font-bold text-navy">{products.length}</h3>
               </CardContent>
             </Card>
           </motion.div>
@@ -129,7 +198,7 @@ const AdminDashboard = () => {
               </CardHeader>
               <CardContent>
                 <h3 className="text-3xl font-bold text-navy">
-                  {sampleProducts.reduce((total, product) => total + product.stock, 0)}
+                  {products.reduce((total, product) => total + product.stock, 0)}
                 </h3>
               </CardContent>
             </Card>
@@ -146,7 +215,7 @@ const AdminDashboard = () => {
               </CardHeader>
               <CardContent>
                 <h3 className="text-3xl font-bold text-navy">
-                  {formatPrice(sampleProducts.reduce((total, product) => total + (product.price * product.stock), 0))}
+                  {formatPrice(products.reduce((total, product) => total + (product.price * product.stock), 0))}
                 </h3>
               </CardContent>
             </Card>
