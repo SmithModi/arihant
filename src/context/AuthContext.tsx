@@ -29,15 +29,39 @@ interface UserData extends User {
   password: string;
 }
 
+// Create default admin account if none exists
+const initializeDefaultAdmin = () => {
+  const users = localStorage.getItem('users');
+  if (!users || JSON.parse(users).length === 0) {
+    // Create default admin
+    const defaultAdmin: UserData = {
+      id: 'admin-' + Date.now().toString(),
+      name: 'Admin',
+      email: 'admin@example.com',
+      password: 'admin123',
+      isAdmin: true
+    };
+    
+    localStorage.setItem('users', JSON.stringify([defaultAdmin]));
+    console.log('Default admin account created:', defaultAdmin.email);
+    
+    return true;
+  }
+  return false;
+};
+
 // AuthProvider component
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [initialized, setInitialized] = useState(false);
   
-  // Load user from localStorage on mount
+  // Load user from localStorage on mount and initialize default admin if needed
   useEffect(() => {
     const loadUser = () => {
+      // Initialize default admin if no users exist
+      initializeDefaultAdmin();
+      
       const savedUser = localStorage.getItem('user');
       if (savedUser) {
         try {
@@ -160,7 +184,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         name,
         email,
         password,
-        isAdmin: false
+        isAdmin: false // Regular users aren't admins by default
       };
       
       // Save to "database"
