@@ -1,5 +1,6 @@
+
 import { useState, useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
@@ -171,23 +172,27 @@ const Wardrobe = () => {
                     <h3 className="text-xl font-playfair font-semibold text-navy mb-4">Browse {category.name}</h3>
                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
                       {category.subcategories.map((subcategory) => (
-                        <motion.div 
-                          key={subcategory.name} 
-                          className="bg-white rounded-md overflow-hidden shadow-sm hover:shadow-md transition-shadow"
-                          whileHover={{ y: -5 }}
-                          transition={{ type: "spring", stiffness: 300 }}
+                        <Link 
+                          to={`/category?subcategory=${subcategory.name}`} 
+                          key={subcategory.name}
                         >
-                          <div className="aspect-square overflow-hidden">
-                            <img 
-                              src={subcategory.image} 
-                              alt={subcategory.name}
-                              className="w-full h-full object-cover transition-transform hover:scale-105 duration-700"
-                            />
-                          </div>
-                          <div className="p-4">
-                            <h3 className="text-lg font-playfair font-semibold text-navy">{subcategory.name}</h3>
-                          </div>
-                        </motion.div>
+                          <motion.div 
+                            className="bg-white rounded-md overflow-hidden shadow-sm hover:shadow-md transition-shadow"
+                            whileHover={{ y: -5 }}
+                            transition={{ type: "spring", stiffness: 300 }}
+                          >
+                            <div className="aspect-square overflow-hidden">
+                              <img 
+                                src={subcategory.image} 
+                                alt={subcategory.name}
+                                className="w-full h-full object-cover transition-transform hover:scale-105 duration-700"
+                              />
+                            </div>
+                            <div className="p-4">
+                              <h3 className="text-lg font-playfair font-semibold text-navy">{subcategory.name}</h3>
+                            </div>
+                          </motion.div>
+                        </Link>
                       ))}
                     </div>
                   </div>

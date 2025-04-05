@@ -14,6 +14,7 @@ interface Product {
   rating: number;
   discount?: number;
   category: string;
+  subcategory?: string;
   fabricType?: string;
 }
 
@@ -23,6 +24,7 @@ interface ProductGridProps {
   showViewAll?: boolean;
   viewAllLink?: string;
   category?: string;
+  subcategory?: string;
 }
 
 const ProductGrid = ({ 
@@ -30,7 +32,8 @@ const ProductGrid = ({
   title, 
   showViewAll = false, 
   viewAllLink = "/wardrobe", 
-  category 
+  category,
+  subcategory
 }: ProductGridProps) => {
   const [visibleProducts, setVisibleProducts] = useState(8);
   
@@ -53,7 +56,9 @@ const ProductGrid = ({
       
       {products.length === 0 ? (
         <div className="text-center py-12 bg-gray-50 rounded-lg">
-          <p className="text-gray-500">No products found {category ? `in ${category}` : ''}.</p>
+          <p className="text-gray-500">
+            No products found {subcategory ? `in ${subcategory}` : category ? `in ${category}` : ''}.
+          </p>
         </div>
       ) : (
         <>
