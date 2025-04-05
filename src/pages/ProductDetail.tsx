@@ -153,7 +153,7 @@ const ProductDetail = () => {
             <span className="text-gray-400">/</span>
             <Link to={`/wardrobe?category=${product.category.toLowerCase().replace(/\s+/g, '-')}`} className="text-gray-500 hover:text-navy transition-colors">{product.category}</Link>
             <span className="text-gray-400">/</span>
-            <Link to={`/wardrobe?subcategory=${product.subcategory.toLowerCase().replace(/\s+/g, '-')}`} className="text-gray-500 hover:text-navy transition-colors">{product.subcategory}</Link>
+            <Link to={`/category?subcategory=${product.subcategory}`} className="text-gray-500 hover:text-navy transition-colors">{product.subcategory}</Link>
             <span className="text-gray-400">/</span>
             <span className="text-navy">{product.name}</span>
           </div>

@@ -252,19 +252,19 @@ const Wardrobe = () => {
 function getCategoryDescription(categoryId: string) {
   switch (categoryId) {
     case "fabrics":
-      return "Explore our premium collection of fabrics sourced from around the world, including fine cotton, linen, iron-free, khadi, and raw silk varieties.";
+      return "Explore our premium collection of fabrics sourced from around the world, including fine cotton, linen, iron-free, khadi, and raw silk varieties. Each fabric is carefully selected for its quality, texture, and performance, ensuring exceptional comfort and durability in every garment.";
     case "wedding-suites":
-      return "Make your special day unforgettable with our bespoke wedding attire, from traditional Sherwanis to modern Tuxedos and Indo-Western fusion designs.";
+      return "Make your special day unforgettable with our bespoke wedding attire, from traditional Sherwanis to modern Tuxedos and Indo-Western fusion designs. Our wedding collection combines exquisite craftsmanship with luxurious fabrics to create memorable ensembles for your celebration.";
     case "formal-attires":
-      return "Command respect with our sophisticated formal wear collection designed for business professionals and corporate environments.";
+      return "Command respect with our sophisticated formal wear collection designed for business professionals and corporate environments. From executive business suits to premium tycoon collections, our formal attire projects confidence and competence with superior tailoring and exceptional fabrics.";
     case "theme-attires":
-      return "Create memorable moments with our coordinated theme attire collections for families, couples, and special occasions.";
+      return "Create memorable moments with our coordinated theme attire collections for families, couples, and special occasions. These thoughtfully designed ensembles create visual harmony while honoring individual style preferences, perfect for celebrations and professional photography.";
     case "uniforms":
-      return "Present a professional image with our custom uniform solutions for hotels, restaurants, corporate offices, and educational institutions.";
+      return "Present a professional image with our custom uniform solutions for hotels, restaurants, corporate offices, and educational institutions. Our uniform collections combine functionality with style, creating a cohesive brand identity while ensuring comfort for extended wear.";
     case "ready-to-wear":
-      return "Enjoy instant style with our ready-to-wear collection featuring quality shirts, t-shirts, jeans, nightwear, and accessories.";
+      return "Enjoy instant style with our ready-to-wear collection featuring quality shirts, t-shirts, jeans, nightwear, and accessories. Each piece combines contemporary design with premium fabrics and attention to detail, offering everyday luxury with minimal effort.";
     case "patterns":
-      return "Discover our diverse range of shirt and trouser patterns that can be customized to create your unique style statement.";
+      return "Discover our diverse range of shirt and trouser patterns that can be customized to create your unique style statement. These professional-grade templates include comprehensive instructions and multiple size options for creating bespoke garments with personalized details.";
     default:
       return "";
   }
