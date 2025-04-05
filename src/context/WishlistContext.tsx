@@ -38,7 +38,7 @@ export const WishlistProvider = ({ children }: { children: React.ReactNode }) =>
       if (user && isAuthenticated) {
         try {
           // Try to fetch wishlist from Supabase first
-          const { data, error } = await (supabase as any)
+          const { data, error } = await supabase
             .from('wishlists')
             .select('items')
             .eq('user_id', user.id)
@@ -46,7 +46,7 @@ export const WishlistProvider = ({ children }: { children: React.ReactNode }) =>
           
           if (data && data.items) {
             // Use data from Supabase
-            setItems(data.items);
+            setItems(data.items as WishlistItem[]);
           } else {
             // Fallback to localStorage if no data in Supabase
             const wishlistKey = getWishlistKey();
@@ -57,7 +57,7 @@ export const WishlistProvider = ({ children }: { children: React.ReactNode }) =>
               setItems(parsedItems);
               
               // Save to Supabase for future use
-              await (supabase as any).from('wishlists').upsert({
+              await supabase.from('wishlists').upsert({
                 user_id: user.id,
                 items: parsedItems
               });
@@ -116,7 +116,7 @@ export const WishlistProvider = ({ children }: { children: React.ReactNode }) =>
       // Save to Supabase if authenticated
       if (user && isAuthenticated) {
         try {
-          await (supabase as any).from('wishlists').upsert({
+          await supabase.from('wishlists').upsert({
             user_id: user.id,
             items: items
           });

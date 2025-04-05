@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Search, Plus, Trash, Edit, ChevronUp, ChevronDown } from 'lucide-react';
@@ -66,7 +65,7 @@ const AdminDashboard = () => {
   // Fetch products from Supabase
   const fetchProducts = async () => {
     try {
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabase
         .from('products')
         .select('*');
       
@@ -189,7 +188,7 @@ const AdminDashboard = () => {
         return;
       }
 
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabase
         .from('products')
         .insert({
           name: newProduct.name,
@@ -240,7 +239,7 @@ const AdminDashboard = () => {
     try {
       if (!editingProduct) return;
 
-      const { data, error } = await (supabase as any)
+      const { data, error } = await supabase
         .from('products')
         .update({
           name: editingProduct.name,
@@ -284,7 +283,7 @@ const AdminDashboard = () => {
     try {
       if (!confirm("Are you sure you want to delete this product?")) return;
 
-      const { error } = await (supabase as any)
+      const { error } = await supabase
         .from('products')
         .delete()
         .eq('id', productId);
