@@ -1,86 +1,19 @@
 
 import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ArrowLeft, Star, Heart, ShoppingCart, Check, Share2 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { useCart } from '@/context/CartContext';
 import { useWishlist } from '@/context/WishlistContext';
 import { formatPrice } from '@/lib/utils';
+import { getProductById, getRelatedProducts } from '@/data/products';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import { Button } from '@/components/ui/button';
+import ProductCard from '@/components/ProductCard';
 
-interface ProductDetailProps {}
-
-// Mock product data - in a real app, this would come from an API or database
-const products = [
-  {
-    id: "1",
-    name: "Premium Cotton Shirt",
-    description: "Our premium cotton shirt is crafted from the finest Egyptian cotton, offering exceptional comfort and breathability. Perfect for formal occasions or business meetings, this shirt features a tailored fit and elegant design that never goes out of style.",
-    price: 2499,
-    category: "Fabrics",
-    subcategory: "Cotton",
-    fabricType: "Egyptian Cotton",
-    rating: 4.8,
-    reviews: 24,
-    availableSizes: ["38", "40", "42", "44", "46"],
-    colors: ["White", "Sky Blue", "Light Pink"],
-    image: "https://images.unsplash.com/photo-1620799140188-3b2a02fd9a77?q=80&w=1000&auto=format&fit=crop",
-    gallery: [
-      "https://images.unsplash.com/photo-1620799140188-3b2a02fd9a77?q=80&w=1000&auto=format&fit=crop",
-      "https://images.unsplash.com/photo-1598033129183-c4f50c736f10?q=80&w=1025&auto=format&fit=crop",
-      "https://images.unsplash.com/photo-1594938298603-c8148c4dae35?q=80&w=1000&auto=format&fit=crop"
-    ],
-    inStock: true,
-    discount: 10
-  },
-  {
-    id: "2",
-    name: "Classic Linen Suit",
-    description: "Experience the ultimate comfort with our classic linen suit, designed for those warm summer events. The breathable fabric keeps you cool while the impeccable tailoring ensures you look sharp. This versatile suit transitions seamlessly from day to evening events.",
-    price: 11999,
-    category: "Wedding Suites",
-    subcategory: "Jodhpuri",
-    fabricType: "Premium Linen",
-    rating: 4.9,
-    reviews: 18,
-    availableSizes: ["38", "40", "42", "44"],
-    colors: ["Beige", "Light Gray", "Navy"],
-    image: "https://images.unsplash.com/photo-1593030761757-71fae45fa0e7?q=80&w=1000&auto=format&fit=crop",
-    gallery: [
-      "https://images.unsplash.com/photo-1593030761757-71fae45fa0e7?q=80&w=1000&auto=format&fit=crop",
-      "https://images.unsplash.com/photo-1594938298603-c8148c4dae35?q=80&w=1000&auto=format&fit=crop",
-      "https://images.unsplash.com/photo-1598033129183-c4f50c736f10?q=80&w=1025&auto=format&fit=crop"
-    ],
-    inStock: true,
-    discount: 5
-  },
-  {
-    id: "3",
-    name: "Royal Sherwani",
-    description: "Make a statement at your wedding with our Royal Sherwani. Handcrafted with intricate embroidery and premium fabrics, this traditional attire exudes elegance and sophistication. The perfect blend of classic design and modern tailoring ensures you stand out on your special day.",
-    price: 24999,
-    category: "Wedding Suites",
-    subcategory: "Sherwani",
-    fabricType: "Raw Silk",
-    rating: 5.0,
-    reviews: 32,
-    availableSizes: ["38", "40", "42", "44", "46", "48"],
-    colors: ["Royal Blue", "Maroon", "Gold"],
-    image: "https://images.unsplash.com/photo-1596344306405-811283c3fa4b?q=80&w=1000&auto=format&fit=crop",
-    gallery: [
-      "https://images.unsplash.com/photo-1596344306405-811283c3fa4b?q=80&w=1000&auto=format&fit=crop",
-      "https://images.unsplash.com/photo-1606752538331-e2518fbf9bd2?q=80&w=1000&auto=format&fit=crop",
-      "https://images.unsplash.com/photo-1606752410021-9960e7c60c9b?q=80&w=1000&auto=format&fit=crop"
-    ],
-    inStock: true,
-    discount: 0
-  }
-];
-
-const ProductDetail: React.FC<ProductDetailProps> = () => {
+const ProductDetail = () => {
   const { productId } = useParams<{ productId: string }>();
   const navigate = useNavigate();
   const { addItem: addToCart } = useCart();
@@ -90,10 +23,28 @@ const ProductDetail: React.FC<ProductDetailProps> = () => {
   const [selectedColor, setSelectedColor] = useState<string>("");
   const [quantity, setQuantity] = useState(1);
   const [activeImage, setActiveImage] = useState(0);
+  const [relatedProducts, setRelatedProducts] = useState<any[]>([]);
   
   // Find product by ID
-  const product = products.find(p => p.id === productId);
+  const product = productId ? getProductById(productId) : null;
   
+  useEffect(() => {
+    // Reset selections when product changes
+    if (product) {
+      setSelectedSize("");
+      setSelectedColor("");
+      setQuantity(1);
+      setActiveImage(0);
+      
+      // Get related products
+      const related = getRelatedProducts(product.id, product.category, 4);
+      setRelatedProducts(related);
+    }
+    
+    // Scroll to top when navigating to product detail
+    window.scrollTo(0, 0);
+  }, [productId, product]);
+
   // Handle back button click
   const handleBack = () => {
     navigate(-1);
@@ -187,7 +138,7 @@ const ProductDetail: React.FC<ProductDetailProps> = () => {
       <main className="pt-24 pb-16">
         <div className="container mx-auto px-4">
           {/* Breadcrumb navigation */}
-          <div className="flex items-center space-x-2 mb-6">
+          <div className="flex items-center space-x-2 mb-6 overflow-x-auto whitespace-nowrap py-2">
             <motion.button
               onClick={handleBack}
               className="flex items-center text-navy hover:text-burgundy transition-colors"
@@ -198,9 +149,11 @@ const ProductDetail: React.FC<ProductDetailProps> = () => {
               <span>Back</span>
             </motion.button>
             <span className="text-gray-400">/</span>
-            <span className="text-gray-500">{product.category}</span>
+            <Link to="/wardrobe" className="text-gray-500 hover:text-navy transition-colors">Wardrobe</Link>
             <span className="text-gray-400">/</span>
-            <span className="text-gray-500">{product.subcategory}</span>
+            <Link to={`/wardrobe?category=${product.category.toLowerCase().replace(/\s+/g, '-')}`} className="text-gray-500 hover:text-navy transition-colors">{product.category}</Link>
+            <span className="text-gray-400">/</span>
+            <Link to={`/wardrobe?subcategory=${product.subcategory.toLowerCase().replace(/\s+/g, '-')}`} className="text-gray-500 hover:text-navy transition-colors">{product.subcategory}</Link>
             <span className="text-gray-400">/</span>
             <span className="text-navy">{product.name}</span>
           </div>
@@ -393,6 +346,29 @@ const ProductDetail: React.FC<ProductDetailProps> = () => {
               </div>
             </div>
           </div>
+          
+          {/* Related Products Section */}
+          {relatedProducts.length > 0 && (
+            <section className="mt-16">
+              <h2 className="text-2xl font-playfair font-bold text-navy mb-6">Related Products</h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                {relatedProducts.map((relatedProduct, index) => (
+                  <ProductCard
+                    key={relatedProduct.id}
+                    id={relatedProduct.id}
+                    name={relatedProduct.name}
+                    description={relatedProduct.description}
+                    price={relatedProduct.price}
+                    image={relatedProduct.image}
+                    rating={relatedProduct.rating}
+                    discount={relatedProduct.discount}
+                    category={relatedProduct.category}
+                    index={index}
+                  />
+                ))}
+              </div>
+            </section>
+          )}
         </div>
       </main>
       <Footer />

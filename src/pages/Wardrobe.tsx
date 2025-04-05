@@ -1,10 +1,11 @@
-
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
-import CategoryCard from '../components/CategoryCard';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import ProductGrid from '@/components/ProductGrid';
+import { getProductsByCategory, products } from '@/data/products';
 
 // Categories data
 const categories = [
@@ -84,13 +85,22 @@ const categories = [
 const Wardrobe = () => {
   const [searchParams] = useSearchParams();
   const [activeCategory, setActiveCategory] = useState(categories[0].id);
+  const [categoryProducts, setCategoryProducts] = useState(getProductsByCategory(categories[0].name));
   
   useEffect(() => {
     const categoryParam = searchParams.get('category');
     if (categoryParam && categories.some(cat => cat.id === categoryParam)) {
       setActiveCategory(categoryParam);
+      const categoryName = categories.find(cat => cat.id === categoryParam)?.name || '';
+      setCategoryProducts(getProductsByCategory(categoryName));
     }
   }, [searchParams]);
+
+  const handleCategoryChange = (categoryId: string) => {
+    setActiveCategory(categoryId);
+    const categoryName = categories.find(cat => cat.id === categoryId)?.name || '';
+    setCategoryProducts(getProductsByCategory(categoryName));
+  };
 
   return (
     <>
@@ -100,12 +110,22 @@ const Wardrobe = () => {
         <section className="bg-navy text-white py-20 md:py-32">
           <div className="container mx-auto px-4">
             <div className="max-w-3xl">
-              <h1 className="text-4xl md:text-5xl font-playfair font-bold mb-6">
+              <motion.h1 
+                className="text-4xl md:text-5xl font-playfair font-bold mb-6"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5 }}
+              >
                 Our Wardrobe Collection
-              </h1>
-              <p className="text-lg text-white/80">
+              </motion.h1>
+              <motion.p 
+                className="text-lg text-white/80"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: 0.2 }}
+              >
                 Explore our comprehensive range of premium fabrics, bespoke attires, and ready-to-wear collection.
-              </p>
+              </motion.p>
             </div>
           </div>
         </section>
@@ -113,14 +133,19 @@ const Wardrobe = () => {
         {/* Categories */}
         <section className="py-16 md:py-20 bg-white">
           <div className="container mx-auto px-4">
-            <Tabs defaultValue={activeCategory} value={activeCategory} onValueChange={setActiveCategory} className="w-full">
+            <Tabs 
+              defaultValue={activeCategory} 
+              value={activeCategory} 
+              onValueChange={handleCategoryChange} 
+              className="w-full"
+            >
               <div className="overflow-x-auto pb-4">
                 <TabsList className="bg-gray-100 p-1 h-auto flex-wrap">
                   {categories.map((category) => (
                     <TabsTrigger 
                       key={category.id} 
                       value={category.id}
-                      className="py-2 px-4 data-[state=active]:bg-navy data-[state=active]:text-white"
+                      className="py-2 px-4 data-[state=active]:bg-navy data-[state=active]:text-white transition-all duration-300"
                     >
                       {category.name}
                     </TabsTrigger>
@@ -130,31 +155,46 @@ const Wardrobe = () => {
               
               {categories.map((category) => (
                 <TabsContent key={category.id} value={category.id} className="mt-8">
-                  <div className="mb-8">
+                  <motion.div 
+                    className="mb-8"
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.5 }}
+                  >
                     <h2 className="text-2xl md:text-3xl font-playfair font-bold text-navy mb-2">{category.name}</h2>
                     <p className="text-gray-700">
                       {getCategoryDescription(category.id)}
                     </p>
+                  </motion.div>
+                  
+                  <div className="mb-12">
+                    <h3 className="text-xl font-playfair font-semibold text-navy mb-4">Browse {category.name}</h3>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
+                      {category.subcategories.map((subcategory) => (
+                        <motion.div 
+                          key={subcategory.name} 
+                          className="bg-white rounded-md overflow-hidden shadow-sm hover:shadow-md transition-shadow"
+                          whileHover={{ y: -5 }}
+                          transition={{ type: "spring", stiffness: 300 }}
+                        >
+                          <div className="aspect-square overflow-hidden">
+                            <img 
+                              src={subcategory.image} 
+                              alt={subcategory.name}
+                              className="w-full h-full object-cover transition-transform hover:scale-105 duration-700"
+                            />
+                          </div>
+                          <div className="p-4">
+                            <h3 className="text-lg font-playfair font-semibold text-navy">{subcategory.name}</h3>
+                          </div>
+                        </motion.div>
+                      ))}
+                    </div>
                   </div>
                   
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-                    {category.subcategories.map((subcategory) => (
-                      <div 
-                        key={subcategory.name} 
-                        className="bg-white rounded-md overflow-hidden shadow-sm hover:shadow-md transition-shadow"
-                      >
-                        <div className="aspect-square overflow-hidden">
-                          <img 
-                            src={subcategory.image} 
-                            alt={subcategory.name}
-                            className="w-full h-full object-cover transition-transform hover:scale-105 duration-700"
-                          />
-                        </div>
-                        <div className="p-4">
-                          <h3 className="text-lg font-playfair font-semibold text-navy">{subcategory.name}</h3>
-                        </div>
-                      </div>
-                    ))}
+                  <div className="mt-12">
+                    <h3 className="text-xl font-playfair font-semibold text-navy mb-6">Featured {category.name} Products</h3>
+                    <ProductGrid products={categoryProducts} />
                   </div>
                 </TabsContent>
               ))}
@@ -204,7 +244,6 @@ const Wardrobe = () => {
   );
 };
 
-// Helper function to get category descriptions
 function getCategoryDescription(categoryId: string) {
   switch (categoryId) {
     case "fabrics":

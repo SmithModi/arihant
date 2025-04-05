@@ -37,7 +37,12 @@ const ProductCard = ({
   
   const inWishlist = isInWishlist(id);
 
-  const handleAddToCart = () => {
+  const handleAddToCart = (e?: React.MouseEvent) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    
     addToCart({
       id,
       name,
@@ -52,23 +57,18 @@ const ProductCard = ({
     });
   };
 
-  const handleToggleWishlist = () => {
+  const handleToggleWishlist = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
     if (inWishlist) {
       removeFromWishlist(id);
-      toast({
-        title: "Removed from wishlist",
-        description: `${name} has been removed from your wishlist`,
-      });
     } else {
       addToWishlist({
         id,
         name,
         price,
         image
-      });
-      toast({
-        title: "Added to wishlist",
-        description: `${name} has been added to your wishlist`,
       });
     }
   };
@@ -97,7 +97,7 @@ const ProductCard = ({
           />
           
           {/* Discount Tag */}
-          {discount && (
+          {discount && discount > 0 && (
             <div className="absolute top-2 left-2 bg-burgundy text-white text-xs px-2 py-1 rounded">
               -{discount}%
             </div>
@@ -133,11 +133,7 @@ const ProductCard = ({
               className={`p-2 rounded-full ${inWishlist ? 'bg-burgundy' : 'bg-navy'} text-white hover:bg-burgundy transition-colors`}
               whileHover={{ scale: 1.1 }}
               whileTap={{ scale: 0.9 }}
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                handleToggleWishlist();
-              }}
+              onClick={(e) => handleToggleWishlist(e)}
             >
               <Heart size={16} fill={inWishlist ? "white" : "none"} />
             </motion.button>
@@ -170,7 +166,7 @@ const ProductCard = ({
         
         <div className="mt-2 flex items-baseline">
           <span className="text-burgundy font-semibold">{formatPrice(price)}</span>
-          {discount && (
+          {discount && discount > 0 && (
             <span className="ml-2 text-gray-400 text-sm line-through">
               {formatPrice(originalPrice)}
             </span>
@@ -184,7 +180,7 @@ const ProductCard = ({
         className="w-full py-2 bg-navy text-white hover:bg-burgundy transition-colors text-sm font-medium"
         whileHover={{ y: -2 }}
         whileTap={{ y: 0 }}
-        onClick={handleAddToCart}
+        onClick={() => handleAddToCart()}
       >
         Add to Cart
       </motion.button>
