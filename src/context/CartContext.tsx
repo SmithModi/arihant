@@ -40,7 +40,8 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
       if (user && isAuthenticated) {
         try {
           // Try to fetch cart from Supabase first
-          const { data, error } = await supabase
+          // Using 'any' type to avoid TypeScript errors with Supabase generated types
+          const { data, error } = await (supabase as any)
             .from('carts')
             .select('items')
             .eq('user_id', user.id)
@@ -59,7 +60,7 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
               setItems(parsedItems);
               
               // Save to Supabase for future use
-              await supabase.from('carts').upsert({
+              await (supabase as any).from('carts').upsert({
                 user_id: user.id,
                 items: parsedItems
               });
@@ -118,7 +119,7 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
       // Save to Supabase if authenticated
       if (user && isAuthenticated) {
         try {
-          await supabase.from('carts').upsert({
+          await (supabase as any).from('carts').upsert({
             user_id: user.id,
             items: items
           });

@@ -38,7 +38,7 @@ export const WishlistProvider = ({ children }: { children: React.ReactNode }) =>
       if (user && isAuthenticated) {
         try {
           // Try to fetch wishlist from Supabase first
-          const { data, error } = await supabase
+          const { data, error } = await (supabase as any)
             .from('wishlists')
             .select('items')
             .eq('user_id', user.id)
@@ -57,7 +57,7 @@ export const WishlistProvider = ({ children }: { children: React.ReactNode }) =>
               setItems(parsedItems);
               
               // Save to Supabase for future use
-              await supabase.from('wishlists').upsert({
+              await (supabase as any).from('wishlists').upsert({
                 user_id: user.id,
                 items: parsedItems
               });
@@ -116,7 +116,7 @@ export const WishlistProvider = ({ children }: { children: React.ReactNode }) =>
       // Save to Supabase if authenticated
       if (user && isAuthenticated) {
         try {
-          await supabase.from('wishlists').upsert({
+          await (supabase as any).from('wishlists').upsert({
             user_id: user.id,
             items: items
           });

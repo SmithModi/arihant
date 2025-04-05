@@ -66,7 +66,7 @@ const AdminDashboard = () => {
   // Fetch products from Supabase
   const fetchProducts = async () => {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('products')
         .select('*');
       
@@ -75,7 +75,7 @@ const AdminDashboard = () => {
       }
       
       if (data) {
-        setProducts(data);
+        setProducts(data as Product[]);
       }
     } catch (error) {
       console.error('Error fetching products:', error);
@@ -189,7 +189,7 @@ const AdminDashboard = () => {
         return;
       }
 
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('products')
         .insert({
           name: newProduct.name,
@@ -211,7 +211,7 @@ const AdminDashboard = () => {
 
       // Add the new product to the local state
       if (data && data[0]) {
-        setProducts(prev => [...prev, data[0]]);
+        setProducts(prev => [...prev, data[0] as Product]);
       }
 
       // Reset the form and close the modal
@@ -240,7 +240,7 @@ const AdminDashboard = () => {
     try {
       if (!editingProduct) return;
 
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('products')
         .update({
           name: editingProduct.name,
@@ -263,7 +263,7 @@ const AdminDashboard = () => {
 
       // Update the product in the local state
       if (data && data[0]) {
-        setProducts(prev => prev.map(p => p.id === editingProduct.id ? data[0] : p));
+        setProducts(prev => prev.map(p => p.id === editingProduct.id ? (data[0] as Product) : p));
       }
 
       // Reset and close the modal
@@ -284,7 +284,7 @@ const AdminDashboard = () => {
     try {
       if (!confirm("Are you sure you want to delete this product?")) return;
 
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from('products')
         .delete()
         .eq('id', productId);
