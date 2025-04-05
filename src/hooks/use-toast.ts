@@ -1,8 +1,19 @@
 
-import { useState, useEffect } from 'react';
-import { toast as sonnerToast, type Toast } from 'sonner';
+import { useState } from 'react';
+import { toast as sonnerToast } from 'sonner';
 
 interface ToastProps {
+  title: string;
+  description?: string;
+  variant?: 'default' | 'destructive';
+  action?: {
+    label: string;
+    onClick: () => void;
+  };
+}
+
+export interface Toast {
+  id: string;
   title: string;
   description?: string;
   variant?: 'default' | 'destructive';
@@ -29,5 +40,11 @@ export const toast = ({ title, description, variant, action }: ToastProps) => {
 };
 
 export function useToast() {
-  return { toast };
+  // We'll maintain an empty array for compatibility with the Toaster component
+  const [toasts] = useState<Toast[]>([]);
+  
+  return { 
+    toast,
+    toasts 
+  };
 }
