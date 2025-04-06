@@ -113,7 +113,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       });
 
       if (error) {
-        // Remove email confirmation check and provide a generic error message
         toast({
           title: "Login failed",
           description: error.message,
@@ -186,7 +185,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             name,
             is_admin: email === 'admin@myshop.com' ? true : false
           },
-          // This bypasses the email confirmation requirement
           emailRedirectTo: window.location.origin
         }
       });
@@ -200,9 +198,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         return false;
       }
 
-      // Auto-sign in the user after registration if possible
+      // Auto-sign in the user after registration
       if (data.user && !data.session) {
-        // If no session was created (which might happen), explicitly log in
+        // If no session was created, explicitly log in
         const { error: signInError } = await supabase.auth.signInWithPassword({
           email,
           password

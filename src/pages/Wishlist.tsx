@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Heart, ShoppingCart, Trash, ArrowRight } from 'lucide-react';
@@ -10,10 +10,22 @@ import { Button } from '@/components/ui/button';
 import { toast } from '@/hooks/use-toast';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
+import { useAuth } from '@/context/AuthContext';
 
 const Wishlist = () => {
   const { items, removeItem, clearWishlist } = useWishlist();
   const { addItem: addToCart } = useCart();
+  const { isAuthenticated } = useAuth();
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    // Short timeout to ensure wishlist is loaded
+    const timer = setTimeout(() => {
+      setIsLoading(false);
+    }, 500);
+    
+    return () => clearTimeout(timer);
+  }, []);
 
   const handleAddToCart = (item: any) => {
     addToCart({
@@ -26,6 +38,22 @@ const Wishlist = () => {
       description: `${item.name} has been added to your cart`,
     });
   };
+
+  if (isLoading) {
+    return (
+      <>
+        <Navbar />
+        <main className="pt-28 pb-16 min-h-screen">
+          <div className="container mx-auto px-4">
+            <div className="flex justify-center items-center h-64">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-burgundy"></div>
+            </div>
+          </div>
+        </main>
+        <Footer />
+      </>
+    );
+  }
 
   return (
     <>
