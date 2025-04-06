@@ -3,6 +3,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { toast } from '@/hooks/use-toast';
 import { useAuth } from './AuthContext';
 import { supabase } from '@/integrations/supabase/client';
+import { Json } from '@/integrations/supabase/types';
 
 export interface CartItem {
   id: string;
@@ -47,8 +48,8 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
             .maybeSingle();
           
           if (data && data.items) {
-            // Use data from Supabase
-            setItems(data.items as CartItem[]);
+            // Use data from Supabase - safely cast from Json to CartItem[]
+            setItems((data.items as any) as CartItem[]);
           } else {
             // Fallback to localStorage if no data in Supabase
             const cartKey = getCartKey();
@@ -61,7 +62,7 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
               // Save to Supabase for future use
               await supabase.from('carts').upsert({
                 user_id: user.id,
-                items: parsedItems
+                items: parsedItems as unknown as Json
               });
             } else {
               setItems([]);
@@ -120,7 +121,7 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
         try {
           await supabase.from('carts').upsert({
             user_id: user.id,
-            items: items
+            items: items as unknown as Json
           });
         } catch (error) {
           console.error('Error saving cart to Supabase:', error);
