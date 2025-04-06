@@ -1,6 +1,7 @@
+
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Search, Plus, Trash, Edit, ChevronUp, ChevronDown, ArrowLeft, LogOut } from 'lucide-react';
+import { Search, Plus, Trash, Edit } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -11,35 +12,34 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useAuth } from '@/context/AuthContext';
 import { toast } from '@/hooks/use-toast';
 import { formatPrice } from '@/lib/utils';
-import { Link, Navigate, useNavigate } from 'react-router-dom';
+import { Navigate, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import AdminHeader from '@/components/AdminHeader';
 import AdminSidebar from '@/components/AdminSidebar';
+import CustomersList from '@/components/CustomersList';
+import { categories, getSubcategoriesByCategoryName } from '@/data/categories';
 
 interface Product {
   id: string;
   name: string;
   price: number;
   category: string;
+  subcategory?: string;
   stock: number;
   description?: string;
   image?: string;
   rating?: number;
 }
-
-const categories = [
-  'All',
-  'Fabrics',
-  'Wedding Suites',
-  'Formal Attires',
-  'Theme Attires',
-  'Uniforms',
-  'Ready to Wear',
-  'Patterns',
-];
 
 const AdminDashboard = () => {
   const { user, isAuthenticated, logout } = useAuth();
@@ -52,6 +52,7 @@ const AdminDashboard = () => {
   const [isAdmin, setIsAdmin] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [activeTab, setActiveTab] = useState('products');
   
   // Modal states
   const [showModal, setShowModal] = useState(false);
@@ -60,11 +61,13 @@ const AdminDashboard = () => {
     name: '',
     price: 0,
     category: 'Fabrics',
+    subcategory: '',
     stock: 0,
     description: '',
     image: '',
     rating: 5
   });
+  const [subcategories, setSubcategories] = useState<{ id: string, name: string }[]>([]);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
@@ -93,13 +96,13 @@ const AdminDashboard = () => {
       
       // Set sample products as fallback
       setProducts([
-        { id: '1', name: 'Premium Linen Fabric', price: 1500, category: 'Fabrics', stock: 45 },
-        { id: '2', name: 'Wedding Sherwani', price: 25000, category: 'Wedding Suites', stock: 12 },
-        { id: '3', name: 'Formal Business Suit', price: 12000, category: 'Formal Attires', stock: 20 },
-        { id: '4', name: 'Father-Son Combo', price: 15000, category: 'Theme Attires', stock: 8 },
-        { id: '5', name: 'Hotel Staff Uniform', price: 3500, category: 'Uniforms', stock: 30 },
-        { id: '6', name: 'Cotton Jeans', price: 2000, category: 'Ready to Wear', stock: 50 },
-        { id: '7', name: 'Shirt Pattern Template', price: 500, category: 'Patterns', stock: 25 },
+        { id: '1', name: 'Premium Linen Fabric', price: 1500, category: 'Fabrics', subcategory: 'Linen', stock: 45 },
+        { id: '2', name: 'Wedding Sherwani', price: 25000, category: 'Wedding Suites', subcategory: 'Groom', stock: 12 },
+        { id: '3', name: 'Formal Business Suit', price: 12000, category: 'Formal Attires', subcategory: 'Suits', stock: 20 },
+        { id: '4', name: 'Father-Son Combo', price: 15000, category: 'Theme Attires', subcategory: 'Family Sets', stock: 8 },
+        { id: '5', name: 'Hotel Staff Uniform', price: 3500, category: 'Uniforms', subcategory: 'Hospitality', stock: 30 },
+        { id: '6', name: 'Cotton Jeans', price: 2000, category: 'Ready to Wear', subcategory: 'Jeans', stock: 50 },
+        { id: '7', name: 'Shirt Pattern Template', price: 500, category: 'Patterns', subcategory: 'Shirt Patterns', stock: 25 },
       ]);
     } finally {
       setIsLoading(false);
@@ -141,6 +144,15 @@ const AdminDashboard = () => {
     fetchProducts();
   }, [user]);
 
+  // Set subcategories based on selected category
+  useEffect(() => {
+    if (editingProduct) {
+      setSubcategories(getSubcategoriesByCategoryName(editingProduct.category));
+    } else {
+      setSubcategories(getSubcategoriesByCategoryName(newProduct.category || 'Fabrics'));
+    }
+  }, [newProduct.category, editingProduct]);
+
   // Handle image change
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -165,18 +177,22 @@ const AdminDashboard = () => {
       const filePath = `products/${fileName}`;
       
       // Check if storage bucket exists, create if not
-      const { data: buckets } = await supabase.storage.listBuckets();
-      const productBucket = buckets?.find(bucket => bucket.name === 'products');
-      
-      if (!productBucket) {
-        // Create bucket if it doesn't exist
-        const { error } = await supabase.storage.createBucket('products', {
-          public: true
-        });
+      try {
+        const { data: buckets } = await supabase.storage.listBuckets();
+        const productBucket = buckets?.find(bucket => bucket.name === 'products');
         
-        if (error) {
-          throw new Error(`Error creating bucket: ${error.message}`);
+        if (!productBucket) {
+          // Create bucket if it doesn't exist
+          const { error } = await supabase.storage.createBucket('products', {
+            public: true
+          });
+          
+          if (error) {
+            throw new Error(`Error creating bucket: ${error.message}`);
+          }
         }
+      } catch (error) {
+        console.error("Error checking or creating bucket:", error);
       }
       
       // Upload file
@@ -239,23 +255,13 @@ const AdminDashboard = () => {
     }
   };
 
-  const renderSortIcon = (field: string) => {
-    if (sortField !== field) return null;
-    
-    return sortDirection === 'asc' ? (
-      <ChevronUp size={16} className="ml-1" />
-    ) : (
-      <ChevronDown size={16} className="ml-1" />
-    );
-  };
-
   // Handle adding a new product
   const handleAddProduct = async () => {
     try {
-      if (!newProduct.name || !newProduct.price) {
+      if (!newProduct.name || !newProduct.price || !newProduct.subcategory) {
         toast({
           title: "Validation error",
-          description: "Name and price are required fields",
+          description: "Name, price and subcategory are required fields",
           variant: "destructive"
         });
         return;
@@ -275,6 +281,7 @@ const AdminDashboard = () => {
           name: newProduct.name,
           price: newProduct.price,
           category: newProduct.category,
+          subcategory: newProduct.subcategory,
           stock: newProduct.stock || 0,
           description: newProduct.description,
           image: imageUrl,
@@ -299,6 +306,7 @@ const AdminDashboard = () => {
         name: '',
         price: 0,
         category: 'Fabrics',
+        subcategory: '',
         stock: 0,
         description: '',
         image: '',
@@ -336,6 +344,7 @@ const AdminDashboard = () => {
           name: editingProduct.name,
           price: editingProduct.price,
           category: editingProduct.category,
+          subcategory: editingProduct.subcategory,
           stock: editingProduct.stock,
           description: editingProduct.description,
           image: imageUrl,
@@ -409,6 +418,21 @@ const AdminDashboard = () => {
     navigate('/login');
   };
 
+  const handleNavigate = (route: string) => {
+    setActiveTab(route);
+  };
+
+  // Handle category change
+  const handleCategoryChange = (value: string) => {
+    if (editingProduct) {
+      setEditingProduct({...editingProduct, category: value, subcategory: ''});
+    } else {
+      setNewProduct({...newProduct, category: value, subcategory: ''});
+    }
+    
+    setSubcategories(getSubcategoriesByCategoryName(value));
+  };
+
   // Loading state
   if (isLoading) {
     return (
@@ -436,222 +460,259 @@ const AdminDashboard = () => {
         onToggle={() => setSidebarOpen(!sidebarOpen)} 
         onBackToSite={handleBackToSite}
         onLogout={handleLogout}
+        onNavigate={handleNavigate}
+        activeRoute={activeTab}
       />
       
       {/* Main Content */}
       <div className={`flex-1 transition-all duration-300 ${sidebarOpen ? 'ml-64' : 'ml-20'}`}>
         <AdminHeader 
-          title="Product Management" 
+          title={activeTab === 'products' ? "Product Management" : "Customer Management"} 
           user={user} 
           onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
         />
         
         <div className="p-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.1 }}
-            >
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium text-gray-500">Total Products</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <h3 className="text-3xl font-bold text-navy">{products.length}</h3>
-                </CardContent>
-              </Card>
-            </motion.div>
-            
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.2 }}
-            >
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium text-gray-500">Total Stock</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <h3 className="text-3xl font-bold text-navy">
-                    {products.reduce((total, product) => total + product.stock, 0)}
-                  </h3>
-                </CardContent>
-              </Card>
-            </motion.div>
-            
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.3 }}
-            >
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium text-gray-500">Total Value</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <h3 className="text-3xl font-bold text-navy">
-                    {formatPrice(products.reduce((total, product) => total + (product.price * product.stock), 0))}
-                  </h3>
-                </CardContent>
-              </Card>
-            </motion.div>
-          </div>
-          
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.4 }}
-            className="bg-white rounded-lg shadow-md p-6"
-          >
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
-              <div className="relative w-full md:w-64">
-                <Search size={18} className="absolute top-1/2 left-3 transform -translate-y-1/2 text-gray-400" />
-                <input
-                  type="text"
-                  placeholder="Search products..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-navy"
-                />
+          {activeTab === 'products' ? (
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5, delay: 0.1 }}
+                >
+                  <Card>
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-sm font-medium text-gray-500">Total Products</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <h3 className="text-3xl font-bold text-navy">{products.length}</h3>
+                    </CardContent>
+                  </Card>
+                </motion.div>
+                
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5, delay: 0.2 }}
+                >
+                  <Card>
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-sm font-medium text-gray-500">Total Stock</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <h3 className="text-3xl font-bold text-navy">
+                        {products.reduce((total, product) => total + product.stock, 0)}
+                      </h3>
+                    </CardContent>
+                  </Card>
+                </motion.div>
+                
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5, delay: 0.3 }}
+                >
+                  <Card>
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-sm font-medium text-gray-500">Total Value</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <h3 className="text-3xl font-bold text-navy">
+                        {formatPrice(products.reduce((total, product) => total + (product.price * product.stock), 0))}
+                      </h3>
+                    </CardContent>
+                  </Card>
+                </motion.div>
               </div>
               
-              <Button 
-                className="bg-burgundy hover:bg-burgundy/90 flex items-center"
-                onClick={() => {
-                  setShowModal(true);
-                  setEditingProduct(null);
-                  setImageFile(null);
-                  setImagePreview(null);
-                }}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: 0.4 }}
+                className="bg-white rounded-lg shadow-md p-6"
               >
-                <Plus size={16} className="mr-1" /> Add New Product
-              </Button>
-            </div>
-            
-            <div className="mb-6 overflow-x-auto">
-              <div className="flex gap-2 flex-wrap">
-                {categories.map((category) => (
-                  <button
-                    key={category}
-                    onClick={() => setSelectedCategory(category)}
-                    className={`px-3 py-1 text-sm rounded-md transition-colors ${
-                      selectedCategory === category
-                        ? 'bg-navy text-white'
-                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                    }`}
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+                  <div className="relative w-full md:w-64">
+                    <Search size={18} className="absolute top-1/2 left-3 transform -translate-y-1/2 text-gray-400" />
+                    <input
+                      type="text"
+                      placeholder="Search products..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-navy"
+                    />
+                  </div>
+                  
+                  <Button 
+                    className="bg-burgundy hover:bg-burgundy/90 flex items-center"
+                    onClick={() => {
+                      setShowModal(true);
+                      setEditingProduct(null);
+                      setImageFile(null);
+                      setImagePreview(null);
+                      setNewProduct({
+                        name: '',
+                        price: 0,
+                        category: 'Fabrics',
+                        subcategory: '',
+                        stock: 0,
+                        description: '',
+                        image: '',
+                        rating: 5
+                      });
+                      setSubcategories(getSubcategoriesByCategoryName('Fabrics'));
+                    }}
                   >
-                    {category}
-                  </button>
-                ))}
-              </div>
-            </div>
-            
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead 
-                      className="cursor-pointer hover:text-navy transition-colors flex items-center" 
-                      onClick={() => handleSort('name')}
+                    <Plus size={16} className="mr-1" /> Add New Product
+                  </Button>
+                </div>
+                
+                <div className="mb-6 overflow-x-auto">
+                  <div className="flex gap-2 flex-wrap">
+                    <button
+                      key="All"
+                      onClick={() => setSelectedCategory('All')}
+                      className={`px-3 py-1 text-sm rounded-md transition-colors ${
+                        selectedCategory === 'All'
+                          ? 'bg-navy text-white'
+                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      }`}
                     >
-                      <span className="flex items-center">
-                        Product Name {renderSortIcon('name')}
-                      </span>
-                    </TableHead>
-                    <TableHead 
-                      className="cursor-pointer hover:text-navy transition-colors" 
-                      onClick={() => handleSort('price')}
-                    >
-                      <span className="flex items-center">
-                        Price {renderSortIcon('price')}
-                      </span>
-                    </TableHead>
-                    <TableHead 
-                      className="cursor-pointer hover:text-navy transition-colors" 
-                      onClick={() => handleSort('category')}
-                    >
-                      <span className="flex items-center">
-                        Category {renderSortIcon('category')}
-                      </span>
-                    </TableHead>
-                    <TableHead 
-                      className="cursor-pointer hover:text-navy transition-colors" 
-                      onClick={() => handleSort('stock')}
-                    >
-                      <span className="flex items-center">
-                        Stock {renderSortIcon('stock')}
-                      </span>
-                    </TableHead>
-                    <TableHead>Image</TableHead>
-                    <TableHead>Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredProducts.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={6} className="text-center py-10 text-gray-500">
-                        No products found
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    filteredProducts.map((product, index) => (
-                      <motion.tr
-                        key={product.id}
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.3, delay: index * 0.05 }}
-                        className="border-b hover:bg-gray-50 transition-colors"
+                      All
+                    </button>
+                    {categories.map((category) => (
+                      <button
+                        key={category.id}
+                        onClick={() => setSelectedCategory(category.name)}
+                        className={`px-3 py-1 text-sm rounded-md transition-colors ${
+                          selectedCategory === category.name
+                            ? 'bg-navy text-white'
+                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                        }`}
                       >
-                        <TableCell className="font-medium">{product.name}</TableCell>
-                        <TableCell>{formatPrice(product.price)}</TableCell>
-                        <TableCell>{product.category}</TableCell>
-                        <TableCell>{product.stock}</TableCell>
-                        <TableCell>
-                          {product.image ? (
-                            <img 
-                              src={product.image} 
-                              alt={product.name} 
-                              className="w-10 h-10 object-cover rounded-md"
-                            />
-                          ) : (
-                            <div className="w-10 h-10 bg-gray-200 rounded-md flex items-center justify-center text-gray-400">
-                              No image
-                            </div>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex space-x-2">
-                            <motion.button 
-                              className="p-1 text-navy hover:text-burgundy transition-colors"
-                              whileHover={{ scale: 1.1 }}
-                              whileTap={{ scale: 0.9 }}
-                              onClick={() => {
-                                setEditingProduct(product);
-                                setImagePreview(product.image || null);
-                                setImageFile(null);
-                                setShowModal(true);
-                              }}
-                            >
-                              <Edit size={16} />
-                            </motion.button>
-                            <motion.button 
-                              className="p-1 text-red-500 hover:text-red-700 transition-colors"
-                              whileHover={{ scale: 1.1 }}
-                              whileTap={{ scale: 0.9 }}
-                              onClick={() => handleDeleteProduct(product.id)}
-                            >
-                              <Trash size={16} />
-                            </motion.button>
-                          </div>
-                        </TableCell>
-                      </motion.tr>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
-            </div>
-          </motion.div>
+                        {category.name}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead 
+                          className="cursor-pointer hover:text-navy transition-colors flex items-center" 
+                          onClick={() => handleSort('name')}
+                        >
+                          <span className="flex items-center">
+                            Product Name
+                          </span>
+                        </TableHead>
+                        <TableHead 
+                          className="cursor-pointer hover:text-navy transition-colors" 
+                          onClick={() => handleSort('price')}
+                        >
+                          <span className="flex items-center">
+                            Price
+                          </span>
+                        </TableHead>
+                        <TableHead 
+                          className="cursor-pointer hover:text-navy transition-colors" 
+                          onClick={() => handleSort('category')}
+                        >
+                          <span className="flex items-center">
+                            Category
+                          </span>
+                        </TableHead>
+                        <TableHead>
+                          <span className="flex items-center">
+                            Subcategory
+                          </span>
+                        </TableHead>
+                        <TableHead 
+                          className="cursor-pointer hover:text-navy transition-colors" 
+                          onClick={() => handleSort('stock')}
+                        >
+                          <span className="flex items-center">
+                            Stock
+                          </span>
+                        </TableHead>
+                        <TableHead>Image</TableHead>
+                        <TableHead>Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredProducts.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={7} className="text-center py-10 text-gray-500">
+                            No products found
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        filteredProducts.map((product, index) => (
+                          <motion.tr
+                            key={product.id}
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.3, delay: index * 0.05 }}
+                            className="border-b hover:bg-gray-50 transition-colors"
+                          >
+                            <TableCell className="font-medium">{product.name}</TableCell>
+                            <TableCell>{formatPrice(product.price)}</TableCell>
+                            <TableCell>{product.category}</TableCell>
+                            <TableCell>{product.subcategory || 'N/A'}</TableCell>
+                            <TableCell>{product.stock}</TableCell>
+                            <TableCell>
+                              {product.image ? (
+                                <img 
+                                  src={product.image} 
+                                  alt={product.name} 
+                                  className="w-10 h-10 object-cover rounded-md"
+                                />
+                              ) : (
+                                <div className="w-10 h-10 bg-gray-200 rounded-md flex items-center justify-center text-gray-400">
+                                  No image
+                                </div>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex space-x-2">
+                                <motion.button 
+                                  className="p-1 text-navy hover:text-burgundy transition-colors"
+                                  whileHover={{ scale: 1.1 }}
+                                  whileTap={{ scale: 0.9 }}
+                                  onClick={() => {
+                                    setEditingProduct(product);
+                                    setImagePreview(product.image || null);
+                                    setImageFile(null);
+                                    setShowModal(true);
+                                    setSubcategories(getSubcategoriesByCategoryName(product.category));
+                                  }}
+                                >
+                                  <Edit size={16} />
+                                </motion.button>
+                                <motion.button 
+                                  className="p-1 text-red-500 hover:text-red-700 transition-colors"
+                                  whileHover={{ scale: 1.1 }}
+                                  whileTap={{ scale: 0.9 }}
+                                  onClick={() => handleDeleteProduct(product.id)}
+                                >
+                                  <Trash size={16} />
+                                </motion.button>
+                              </div>
+                            </TableCell>
+                          </motion.tr>
+                        ))
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
+              </motion.div>
+            </>
+          ) : (
+            <CustomersList />
+          )}
         </div>
       </div>
 
@@ -701,21 +762,42 @@ const AdminDashboard = () => {
               
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
-                <select
+                <Select
                   value={editingProduct ? editingProduct.category : newProduct.category}
-                  onChange={(e) => {
+                  onValueChange={handleCategoryChange}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select a category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {categories.map(category => (
+                      <SelectItem key={category.id} value={category.name}>{category.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Subcategory</label>
+                <Select
+                  value={editingProduct ? editingProduct.subcategory : newProduct.subcategory}
+                  onValueChange={(value) => {
                     if (editingProduct) {
-                      setEditingProduct({...editingProduct, category: e.target.value});
+                      setEditingProduct({...editingProduct, subcategory: value});
                     } else {
-                      setNewProduct({...newProduct, category: e.target.value});
+                      setNewProduct({...newProduct, subcategory: value});
                     }
                   }}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-burgundy"
                 >
-                  {categories.filter(c => c !== 'All').map(category => (
-                    <option key={category} value={category}>{category}</option>
-                  ))}
-                </select>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select a subcategory" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {subcategories.map(subcategory => (
+                      <SelectItem key={subcategory.id} value={subcategory.id}>{subcategory.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               
               <div>

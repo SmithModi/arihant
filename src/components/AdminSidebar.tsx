@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Home, Package, Users, Settings, LogOut, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Home, Package, Users, LogOut, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 interface AdminSidebarProps {
@@ -9,9 +9,18 @@ interface AdminSidebarProps {
   onToggle: () => void;
   onBackToSite: () => void;
   onLogout: () => void;
+  onNavigate: (route: string) => void;
+  activeRoute: string;
 }
 
-const AdminSidebar = ({ isOpen, onToggle, onBackToSite, onLogout }: AdminSidebarProps) => {
+const AdminSidebar = ({ 
+  isOpen, 
+  onToggle, 
+  onBackToSite, 
+  onLogout, 
+  onNavigate,
+  activeRoute 
+}: AdminSidebarProps) => {
   return (
     <motion.div 
       className="fixed top-0 left-0 h-full bg-navy text-white shadow-lg z-10"
@@ -36,22 +45,26 @@ const AdminSidebar = ({ isOpen, onToggle, onBackToSite, onLogout }: AdminSidebar
         <div className="flex-1 py-6">
           <ul className="space-y-2">
             <li>
-              <a href="#" className="flex items-center px-4 py-3 text-white hover:bg-burgundy transition-colors">
+              <button 
+                onClick={() => onNavigate('products')}
+                className={`w-full flex items-center px-4 py-3 text-white transition-colors ${
+                  activeRoute === 'products' ? 'bg-burgundy' : 'hover:bg-burgundy'
+                }`}
+              >
                 <Package size={20} />
                 {isOpen && <span className="ml-4">Products</span>}
-              </a>
+              </button>
             </li>
             <li>
-              <a href="#" className="flex items-center px-4 py-3 text-white hover:bg-burgundy transition-colors">
+              <button 
+                onClick={() => onNavigate('customers')}
+                className={`w-full flex items-center px-4 py-3 text-white transition-colors ${
+                  activeRoute === 'customers' ? 'bg-burgundy' : 'hover:bg-burgundy'
+                }`}
+              >
                 <Users size={20} />
                 {isOpen && <span className="ml-4">Customers</span>}
-              </a>
-            </li>
-            <li>
-              <a href="#" className="flex items-center px-4 py-3 text-white hover:bg-burgundy transition-colors">
-                <Settings size={20} />
-                {isOpen && <span className="ml-4">Settings</span>}
-              </a>
+              </button>
             </li>
           </ul>
         </div>

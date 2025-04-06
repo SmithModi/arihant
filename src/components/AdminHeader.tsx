@@ -12,7 +12,7 @@ interface AdminHeaderProps {
 
 const AdminHeader = ({ title, user, onToggleSidebar }: AdminHeaderProps) => {
   return (
-    <header className="bg-white shadow-sm border-b border-gray-200 py-4 px-6 flex items-center justify-between">
+    <header className="bg-white shadow-sm border-b border-gray-200 py-4 px-6 flex items-center justify-between sticky top-0 z-10">
       <div className="flex items-center">
         <Button 
           variant="ghost" 
