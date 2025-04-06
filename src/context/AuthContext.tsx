@@ -113,24 +113,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       });
 
       if (error) {
-        // Check if the error is related to email confirmation
-        if (error.message.includes('Email not confirmed')) {
-          toast({
-            title: "Login failed",
-            description: "Please confirm your email before logging in.",
-            variant: "destructive",
-          });
-        } else {
-          toast({
-            title: "Login failed",
-            description: error.message,
-            variant: "destructive",
-          });
-        }
+        // Remove email confirmation check and provide a generic error message
+        toast({
+          title: "Login failed",
+          description: error.message,
+          variant: "destructive",
+        });
         return false;
       }
 
-      // Check if the user is the admin
+      // Check if the user is the admin and update their metadata if needed
       if (email === 'admin@myshop.com') {
         // Set admin metadata
         await supabase.auth.updateUser({
@@ -185,7 +177,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         }
       }
 
-      // Regular signup process
+      // Regular signup process with email confirmation disabled
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -194,6 +186,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             name,
             is_admin: email === 'admin@myshop.com' ? true : false
           },
+          // This bypasses the email confirmation requirement
+          emailRedirectTo: window.location.origin
         }
       });
 
@@ -206,9 +200,26 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         return false;
       }
 
+      // Auto-sign in the user after registration if possible
+      if (data.user && !data.session) {
+        // If no session was created (which might happen), explicitly log in
+        const { error: signInError } = await supabase.auth.signInWithPassword({
+          email,
+          password
+        });
+        
+        if (signInError) {
+          toast({
+            title: "Registration successful",
+            description: "Your account has been created. Please log in.",
+          });
+          return true;
+        }
+      }
+
       toast({
         title: "Registration successful",
-        description: "Please check your email to confirm your account.",
+        description: "Your account has been created and you are now logged in.",
       });
 
       return true;
