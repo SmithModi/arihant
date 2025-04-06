@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Search, Plus, Trash, Edit, ChevronUp, ChevronDown } from 'lucide-react';
+import { Search, Plus, Trash, Edit, ChevronUp, ChevronDown, ArrowLeft, LogOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -14,8 +14,10 @@ import {
 import { useAuth } from '@/context/AuthContext';
 import { toast } from '@/hooks/use-toast';
 import { formatPrice } from '@/lib/utils';
-import { Navigate } from 'react-router-dom';
+import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
+import AdminHeader from '@/components/AdminHeader';
+import AdminSidebar from '@/components/AdminSidebar';
 
 interface Product {
   id: string;
@@ -40,7 +42,8 @@ const categories = [
 ];
 
 const AdminDashboard = () => {
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, logout } = useAuth();
+  const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [sortField, setSortField] = useState<string | null>(null);
@@ -48,6 +51,7 @@ const AdminDashboard = () => {
   const [products, setProducts] = useState<Product[]>([]);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
   
   // Modal states
   const [showModal, setShowModal] = useState(false);
@@ -61,6 +65,9 @@ const AdminDashboard = () => {
     image: '',
     rating: 5
   });
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
 
   // Fetch products from Supabase
   const fetchProducts = async () => {
@@ -134,6 +141,72 @@ const AdminDashboard = () => {
     fetchProducts();
   }, [user]);
 
+  // Handle image change
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    setImageFile(file);
+    
+    // Create preview URL
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setImagePreview(reader.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  // Upload image to Supabase Storage
+  const uploadImage = async (file: File): Promise<string | null> => {
+    try {
+      setIsUploading(true);
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Math.random().toString(36).substring(2, 15)}.${fileExt}`;
+      const filePath = `products/${fileName}`;
+      
+      // Check if storage bucket exists, create if not
+      const { data: buckets } = await supabase.storage.listBuckets();
+      const productBucket = buckets?.find(bucket => bucket.name === 'products');
+      
+      if (!productBucket) {
+        // Create bucket if it doesn't exist
+        const { error } = await supabase.storage.createBucket('products', {
+          public: true
+        });
+        
+        if (error) {
+          throw new Error(`Error creating bucket: ${error.message}`);
+        }
+      }
+      
+      // Upload file
+      const { error: uploadError } = await supabase.storage
+        .from('products')
+        .upload(filePath, file);
+
+      if (uploadError) {
+        throw uploadError;
+      }
+      
+      // Get public URL
+      const { data } = supabase.storage
+        .from('products')
+        .getPublicUrl(filePath);
+        
+      return data.publicUrl;
+    } catch (error) {
+      console.error('Error uploading image:', error);
+      toast({
+        title: "Failed to upload image",
+        description: "Please try again later",
+        variant: "destructive"
+      });
+      return null;
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
   // Sort and filter products
   const filteredProducts = products
     .filter(product => 
@@ -188,6 +261,14 @@ const AdminDashboard = () => {
         return;
       }
 
+      let imageUrl = newProduct.image;
+      
+      // Upload image if one was selected
+      if (imageFile) {
+        imageUrl = await uploadImage(imageFile);
+        if (!imageUrl) return;
+      }
+
       const { data, error } = await supabase
         .from('products')
         .insert({
@@ -196,7 +277,7 @@ const AdminDashboard = () => {
           category: newProduct.category,
           stock: newProduct.stock || 0,
           description: newProduct.description,
-          image: newProduct.image,
+          image: imageUrl,
           rating: newProduct.rating
         })
         .select();
@@ -223,6 +304,8 @@ const AdminDashboard = () => {
         image: '',
         rating: 5
       });
+      setImageFile(null);
+      setImagePreview(null);
       setShowModal(false);
     } catch (error) {
       console.error('Error adding product:', error);
@@ -239,6 +322,14 @@ const AdminDashboard = () => {
     try {
       if (!editingProduct) return;
 
+      let imageUrl = editingProduct.image;
+      
+      // Upload image if one was selected
+      if (imageFile) {
+        imageUrl = await uploadImage(imageFile);
+        if (!imageUrl) return;
+      }
+
       const { data, error } = await supabase
         .from('products')
         .update({
@@ -247,7 +338,7 @@ const AdminDashboard = () => {
           category: editingProduct.category,
           stock: editingProduct.stock,
           description: editingProduct.description,
-          image: editingProduct.image,
+          image: imageUrl,
           rating: editingProduct.rating
         })
         .eq('id', editingProduct.id)
@@ -267,6 +358,8 @@ const AdminDashboard = () => {
 
       // Reset and close the modal
       setEditingProduct(null);
+      setImageFile(null);
+      setImagePreview(null);
       setShowModal(false);
     } catch (error) {
       console.error('Error updating product:', error);
@@ -307,6 +400,15 @@ const AdminDashboard = () => {
     }
   };
 
+  const handleBackToSite = () => {
+    navigate('/');
+  };
+
+  const handleLogout = async () => {
+    await logout();
+    navigate('/login');
+  };
+
   // Loading state
   if (isLoading) {
     return (
@@ -327,204 +429,230 @@ const AdminDashboard = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-20 px-4">
-      <div className="max-w-7xl mx-auto">
-        <motion.div 
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-          className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4"
-        >
-          <div>
-            <h1 className="text-3xl font-playfair font-bold text-navy">Admin Dashboard</h1>
-            <p className="text-gray-500">Manage your products and inventory</p>
-          </div>
-          <Button 
-            className="bg-burgundy hover:bg-burgundy/90 flex items-center"
-            onClick={() => {
-              setShowModal(true);
-              setEditingProduct(null);
-            }}
-          >
-            <Plus size={16} className="mr-1" /> Add New Product
-          </Button>
-        </motion.div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.1 }}
-          >
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-gray-500">Total Products</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <h3 className="text-3xl font-bold text-navy">{products.length}</h3>
-              </CardContent>
-            </Card>
-          </motion.div>
-          
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.2 }}
-          >
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-gray-500">Total Stock</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <h3 className="text-3xl font-bold text-navy">
-                  {products.reduce((total, product) => total + product.stock, 0)}
-                </h3>
-              </CardContent>
-            </Card>
-          </motion.div>
-          
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.3 }}
-          >
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-gray-500">Total Value</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <h3 className="text-3xl font-bold text-navy">
-                  {formatPrice(products.reduce((total, product) => total + (product.price * product.stock), 0))}
-                </h3>
-              </CardContent>
-            </Card>
-          </motion.div>
-        </div>
+    <div className="min-h-screen bg-gray-50 flex">
+      {/* Admin Sidebar */}
+      <AdminSidebar 
+        isOpen={sidebarOpen} 
+        onToggle={() => setSidebarOpen(!sidebarOpen)} 
+        onBackToSite={handleBackToSite}
+        onLogout={handleLogout}
+      />
+      
+      {/* Main Content */}
+      <div className={`flex-1 transition-all duration-300 ${sidebarOpen ? 'ml-64' : 'ml-20'}`}>
+        <AdminHeader 
+          title="Product Management" 
+          user={user} 
+          onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
+        />
         
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.4 }}
-          className="bg-white rounded-lg shadow-md p-6"
-        >
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
-            <div className="relative w-full md:w-64">
-              <Search size={18} className="absolute top-1/2 left-3 transform -translate-y-1/2 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Search products..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-navy"
-              />
+        <div className="p-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.1 }}
+            >
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium text-gray-500">Total Products</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <h3 className="text-3xl font-bold text-navy">{products.length}</h3>
+                </CardContent>
+              </Card>
+            </motion.div>
+            
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.2 }}
+            >
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium text-gray-500">Total Stock</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <h3 className="text-3xl font-bold text-navy">
+                    {products.reduce((total, product) => total + product.stock, 0)}
+                  </h3>
+                </CardContent>
+              </Card>
+            </motion.div>
+            
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.3 }}
+            >
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium text-gray-500">Total Value</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <h3 className="text-3xl font-bold text-navy">
+                    {formatPrice(products.reduce((total, product) => total + (product.price * product.stock), 0))}
+                  </h3>
+                </CardContent>
+              </Card>
+            </motion.div>
+          </div>
+          
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.4 }}
+            className="bg-white rounded-lg shadow-md p-6"
+          >
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+              <div className="relative w-full md:w-64">
+                <Search size={18} className="absolute top-1/2 left-3 transform -translate-y-1/2 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="Search products..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-navy"
+                />
+              </div>
+              
+              <Button 
+                className="bg-burgundy hover:bg-burgundy/90 flex items-center"
+                onClick={() => {
+                  setShowModal(true);
+                  setEditingProduct(null);
+                  setImageFile(null);
+                  setImagePreview(null);
+                }}
+              >
+                <Plus size={16} className="mr-1" /> Add New Product
+              </Button>
             </div>
             
-            <div className="flex gap-2 flex-wrap">
-              {categories.map((category) => (
-                <button
-                  key={category}
-                  onClick={() => setSelectedCategory(category)}
-                  className={`px-3 py-1 text-sm rounded-md transition-colors ${
-                    selectedCategory === category
-                      ? 'bg-navy text-white'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  }`}
-                >
-                  {category}
-                </button>
-              ))}
+            <div className="mb-6 overflow-x-auto">
+              <div className="flex gap-2 flex-wrap">
+                {categories.map((category) => (
+                  <button
+                    key={category}
+                    onClick={() => setSelectedCategory(category)}
+                    className={`px-3 py-1 text-sm rounded-md transition-colors ${
+                      selectedCategory === category
+                        ? 'bg-navy text-white'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    {category}
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
-          
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead 
-                    className="cursor-pointer hover:text-navy transition-colors flex items-center" 
-                    onClick={() => handleSort('name')}
-                  >
-                    <span className="flex items-center">
-                      Product Name {renderSortIcon('name')}
-                    </span>
-                  </TableHead>
-                  <TableHead 
-                    className="cursor-pointer hover:text-navy transition-colors" 
-                    onClick={() => handleSort('price')}
-                  >
-                    <span className="flex items-center">
-                      Price {renderSortIcon('price')}
-                    </span>
-                  </TableHead>
-                  <TableHead 
-                    className="cursor-pointer hover:text-navy transition-colors" 
-                    onClick={() => handleSort('category')}
-                  >
-                    <span className="flex items-center">
-                      Category {renderSortIcon('category')}
-                    </span>
-                  </TableHead>
-                  <TableHead 
-                    className="cursor-pointer hover:text-navy transition-colors" 
-                    onClick={() => handleSort('stock')}
-                  >
-                    <span className="flex items-center">
-                      Stock {renderSortIcon('stock')}
-                    </span>
-                  </TableHead>
-                  <TableHead>Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredProducts.length === 0 ? (
+            
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center py-10 text-gray-500">
-                      No products found
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  filteredProducts.map((product, index) => (
-                    <motion.tr
-                      key={product.id}
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.3, delay: index * 0.05 }}
-                      className="border-b hover:bg-gray-50 transition-colors"
+                    <TableHead 
+                      className="cursor-pointer hover:text-navy transition-colors flex items-center" 
+                      onClick={() => handleSort('name')}
                     >
-                      <TableCell className="font-medium">{product.name}</TableCell>
-                      <TableCell>{formatPrice(product.price)}</TableCell>
-                      <TableCell>{product.category}</TableCell>
-                      <TableCell>{product.stock}</TableCell>
-                      <TableCell>
-                        <div className="flex space-x-2">
-                          <motion.button 
-                            className="p-1 text-navy hover:text-burgundy transition-colors"
-                            whileHover={{ scale: 1.1 }}
-                            whileTap={{ scale: 0.9 }}
-                            onClick={() => {
-                              setEditingProduct(product);
-                              setShowModal(true);
-                            }}
-                          >
-                            <Edit size={16} />
-                          </motion.button>
-                          <motion.button 
-                            className="p-1 text-red-500 hover:text-red-700 transition-colors"
-                            whileHover={{ scale: 1.1 }}
-                            whileTap={{ scale: 0.9 }}
-                            onClick={() => handleDeleteProduct(product.id)}
-                          >
-                            <Trash size={16} />
-                          </motion.button>
-                        </div>
+                      <span className="flex items-center">
+                        Product Name {renderSortIcon('name')}
+                      </span>
+                    </TableHead>
+                    <TableHead 
+                      className="cursor-pointer hover:text-navy transition-colors" 
+                      onClick={() => handleSort('price')}
+                    >
+                      <span className="flex items-center">
+                        Price {renderSortIcon('price')}
+                      </span>
+                    </TableHead>
+                    <TableHead 
+                      className="cursor-pointer hover:text-navy transition-colors" 
+                      onClick={() => handleSort('category')}
+                    >
+                      <span className="flex items-center">
+                        Category {renderSortIcon('category')}
+                      </span>
+                    </TableHead>
+                    <TableHead 
+                      className="cursor-pointer hover:text-navy transition-colors" 
+                      onClick={() => handleSort('stock')}
+                    >
+                      <span className="flex items-center">
+                        Stock {renderSortIcon('stock')}
+                      </span>
+                    </TableHead>
+                    <TableHead>Image</TableHead>
+                    <TableHead>Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredProducts.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={6} className="text-center py-10 text-gray-500">
+                        No products found
                       </TableCell>
-                    </motion.tr>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </div>
-        </motion.div>
+                    </TableRow>
+                  ) : (
+                    filteredProducts.map((product, index) => (
+                      <motion.tr
+                        key={product.id}
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.3, delay: index * 0.05 }}
+                        className="border-b hover:bg-gray-50 transition-colors"
+                      >
+                        <TableCell className="font-medium">{product.name}</TableCell>
+                        <TableCell>{formatPrice(product.price)}</TableCell>
+                        <TableCell>{product.category}</TableCell>
+                        <TableCell>{product.stock}</TableCell>
+                        <TableCell>
+                          {product.image ? (
+                            <img 
+                              src={product.image} 
+                              alt={product.name} 
+                              className="w-10 h-10 object-cover rounded-md"
+                            />
+                          ) : (
+                            <div className="w-10 h-10 bg-gray-200 rounded-md flex items-center justify-center text-gray-400">
+                              No image
+                            </div>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex space-x-2">
+                            <motion.button 
+                              className="p-1 text-navy hover:text-burgundy transition-colors"
+                              whileHover={{ scale: 1.1 }}
+                              whileTap={{ scale: 0.9 }}
+                              onClick={() => {
+                                setEditingProduct(product);
+                                setImagePreview(product.image || null);
+                                setImageFile(null);
+                                setShowModal(true);
+                              }}
+                            >
+                              <Edit size={16} />
+                            </motion.button>
+                            <motion.button 
+                              className="p-1 text-red-500 hover:text-red-700 transition-colors"
+                              whileHover={{ scale: 1.1 }}
+                              whileTap={{ scale: 0.9 }}
+                              onClick={() => handleDeleteProduct(product.id)}
+                            >
+                              <Trash size={16} />
+                            </motion.button>
+                          </div>
+                        </TableCell>
+                      </motion.tr>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          </motion.div>
+        </div>
       </div>
 
       {/* Product Add/Edit Modal */}
@@ -624,20 +752,74 @@ const AdminDashboard = () => {
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Image URL</label>
-                <input
-                  type="text"
-                  value={editingProduct ? editingProduct.image || '' : newProduct.image || ''}
-                  onChange={(e) => {
-                    if (editingProduct) {
-                      setEditingProduct({...editingProduct, image: e.target.value});
-                    } else {
-                      setNewProduct({...newProduct, image: e.target.value});
+                <label className="block text-sm font-medium text-gray-700 mb-1">Image</label>
+                <div className="flex items-center space-x-4">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageChange}
+                    className="hidden"
+                    id="image-upload"
+                  />
+                  <label
+                    htmlFor="image-upload"
+                    className="cursor-pointer px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors"
+                  >
+                    Choose File
+                  </label>
+                  <span className="text-sm text-gray-500 truncate max-w-[200px]">
+                    {imageFile ? imageFile.name : 'No file chosen'}
+                  </span>
+                </div>
+                
+                {/* Image Preview */}
+                {imagePreview && (
+                  <div className="mt-4">
+                    <p className="text-sm text-gray-500 mb-2">Preview:</p>
+                    <img 
+                      src={imagePreview} 
+                      alt="Preview" 
+                      className="h-40 object-contain border rounded-md"
+                    />
+                  </div>
+                )}
+                
+                {/* Existing Image URL */}
+                {!imageFile && !imagePreview && (editingProduct?.image || newProduct.image) && (
+                  <div className="mt-4">
+                    <p className="text-sm text-gray-500 mb-2">Current image:</p>
+                    <img 
+                      src={editingProduct?.image || newProduct.image} 
+                      alt="Current" 
+                      className="h-40 object-contain border rounded-md"
+                    />
+                  </div>
+                )}
+                
+                {/* Image URL input as fallback */}
+                <div className="mt-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Or enter image URL
+                  </label>
+                  <input
+                    type="text"
+                    value={
+                      editingProduct 
+                        ? (imageFile ? '' : editingProduct.image || '') 
+                        : (imageFile ? '' : newProduct.image || '')
                     }
-                  }}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-burgundy"
-                  placeholder="https://example.com/image.jpg"
-                />
+                    onChange={(e) => {
+                      if (editingProduct) {
+                        setEditingProduct({...editingProduct, image: e.target.value});
+                      } else {
+                        setNewProduct({...newProduct, image: e.target.value});
+                      }
+                    }}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-burgundy"
+                    placeholder="https://example.com/image.jpg"
+                    disabled={!!imageFile}
+                  />
+                </div>
               </div>
               
               <div>
@@ -666,6 +848,8 @@ const AdminDashboard = () => {
                   onClick={() => {
                     setShowModal(false);
                     setEditingProduct(null);
+                    setImageFile(null);
+                    setImagePreview(null);
                   }}
                 >
                   Cancel
@@ -673,8 +857,9 @@ const AdminDashboard = () => {
                 <Button
                   className="bg-burgundy hover:bg-burgundy/90"
                   onClick={editingProduct ? handleUpdateProduct : handleAddProduct}
+                  disabled={isUploading}
                 >
-                  {editingProduct ? 'Update Product' : 'Add Product'}
+                  {isUploading ? 'Uploading...' : (editingProduct ? 'Update Product' : 'Add Product')}
                 </Button>
               </div>
             </div>
