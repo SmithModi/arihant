@@ -27,11 +27,11 @@ const AdminHeader = ({ title, user, onToggleSidebar }: AdminHeaderProps) => {
       <div className="flex items-center">
         {user && (
           <div className="flex items-center">
-            <div className="w-8 h-8 rounded-full bg-burgundy text-white flex items-center justify-center mr-2">
+            <div className="w-10 h-10 rounded-full bg-burgundy text-white flex items-center justify-center mr-3">
               {user.name.charAt(0).toUpperCase()}
             </div>
             <div className="hidden md:block">
-              <p className="text-sm font-medium">{user.name}</p>
+              <p className="text-sm font-medium text-navy">{user.name}</p>
               <p className="text-xs text-gray-500">{user.email}</p>
             </div>
           </div>

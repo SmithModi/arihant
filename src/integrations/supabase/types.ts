@@ -44,6 +44,7 @@ export type Database = {
           price: number
           rating: number | null
           stock: number
+          subcategory: string | null
           updated_at: string | null
         }
         Insert: {
@@ -56,6 +57,7 @@ export type Database = {
           price: number
           rating?: number | null
           stock?: number
+          subcategory?: string | null
           updated_at?: string | null
         }
         Update: {
@@ -68,6 +70,7 @@ export type Database = {
           price?: number
           rating?: number | null
           stock?: number
+          subcategory?: string | null
           updated_at?: string | null
         }
         Relationships: []

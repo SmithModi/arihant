@@ -1,7 +1,6 @@
-
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Search, Plus, Trash, Edit } from 'lucide-react';
+import { Search, Plus, Trash, Edit, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -71,10 +70,12 @@ const AdminDashboard = () => {
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
 
   // Fetch products from Supabase
   const fetchProducts = async () => {
     try {
+      setIsLoading(true);
       const { data, error } = await supabase
         .from('products')
         .select('*');
@@ -159,6 +160,7 @@ const AdminDashboard = () => {
     if (!file) return;
     
     setImageFile(file);
+    setUploadError(null);
     
     // Create preview URL
     const reader = new FileReader();
@@ -168,53 +170,52 @@ const AdminDashboard = () => {
     reader.readAsDataURL(file);
   };
 
+  // Remove selected image
+  const handleRemoveImage = () => {
+    setImageFile(null);
+    setImagePreview(null);
+    if (editingProduct) {
+      setEditingProduct({...editingProduct, image: undefined});
+    } else {
+      setNewProduct({...newProduct, image: ''});
+    }
+  };
+
   // Upload image to Supabase Storage
   const uploadImage = async (file: File): Promise<string | null> => {
     try {
       setIsUploading(true);
+      setUploadError(null);
       const fileExt = file.name.split('.').pop();
       const fileName = `${Math.random().toString(36).substring(2, 15)}.${fileExt}`;
-      const filePath = `products/${fileName}`;
-      
-      // Check if storage bucket exists, create if not
-      try {
-        const { data: buckets } = await supabase.storage.listBuckets();
-        const productBucket = buckets?.find(bucket => bucket.name === 'products');
-        
-        if (!productBucket) {
-          // Create bucket if it doesn't exist
-          const { error } = await supabase.storage.createBucket('products', {
-            public: true
-          });
-          
-          if (error) {
-            throw new Error(`Error creating bucket: ${error.message}`);
-          }
-        }
-      } catch (error) {
-        console.error("Error checking or creating bucket:", error);
-      }
+      const filePath = `${fileName}`;
       
       // Upload file
-      const { error: uploadError } = await supabase.storage
+      const { error: uploadError, data } = await supabase.storage
         .from('products')
-        .upload(filePath, file);
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: false
+        });
 
       if (uploadError) {
-        throw uploadError;
+        console.error('Error uploading image:', uploadError);
+        setUploadError(`Upload error: ${uploadError.message}`);
+        return null;
       }
       
       // Get public URL
-      const { data } = supabase.storage
+      const { data: publicUrlData } = supabase.storage
         .from('products')
         .getPublicUrl(filePath);
         
-      return data.publicUrl;
+      return publicUrlData.publicUrl;
     } catch (error) {
       console.error('Error uploading image:', error);
+      setUploadError(`Upload failed: ${error.message || 'Unknown error'}`);
       toast({
         title: "Failed to upload image",
-        description: "Please try again later",
+        description: error.message || "Please try again later",
         variant: "destructive"
       });
       return null;
@@ -258,10 +259,10 @@ const AdminDashboard = () => {
   // Handle adding a new product
   const handleAddProduct = async () => {
     try {
-      if (!newProduct.name || !newProduct.price || !newProduct.subcategory) {
+      if (!newProduct.name || !newProduct.price || !newProduct.category) {
         toast({
           title: "Validation error",
-          description: "Name, price and subcategory are required fields",
+          description: "Name, price, and category are required fields",
           variant: "destructive"
         });
         return;
@@ -272,24 +273,38 @@ const AdminDashboard = () => {
       // Upload image if one was selected
       if (imageFile) {
         imageUrl = await uploadImage(imageFile);
-        if (!imageUrl) return;
+        if (!imageUrl && !newProduct.image) {
+          toast({
+            title: "Image upload failed",
+            description: uploadError || "Please try again or use an image URL",
+            variant: "destructive"
+          });
+          return;
+        }
       }
 
+      const productData = {
+        name: newProduct.name,
+        price: newProduct.price,
+        category: newProduct.category,
+        subcategory: newProduct.subcategory || null,
+        stock: newProduct.stock || 0,
+        description: newProduct.description || null,
+        image: imageUrl || null,
+        rating: newProduct.rating || 5
+      };
+      
+      console.log('Adding product with data:', productData);
+      
       const { data, error } = await supabase
         .from('products')
-        .insert({
-          name: newProduct.name,
-          price: newProduct.price,
-          category: newProduct.category,
-          subcategory: newProduct.subcategory,
-          stock: newProduct.stock || 0,
-          description: newProduct.description,
-          image: imageUrl,
-          rating: newProduct.rating
-        })
+        .insert(productData)
         .select();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error from Supabase:', error);
+        throw error;
+      }
 
       toast({
         title: "Product added",
@@ -314,12 +329,13 @@ const AdminDashboard = () => {
       });
       setImageFile(null);
       setImagePreview(null);
+      setUploadError(null);
       setShowModal(false);
     } catch (error) {
       console.error('Error adding product:', error);
       toast({
         title: "Failed to add product",
-        description: "Please try again later",
+        description: error.message || "Please try again later",
         variant: "destructive"
       });
     }
@@ -335,25 +351,39 @@ const AdminDashboard = () => {
       // Upload image if one was selected
       if (imageFile) {
         imageUrl = await uploadImage(imageFile);
-        if (!imageUrl) return;
+        if (!imageUrl && !editingProduct.image) {
+          toast({
+            title: "Image upload failed",
+            description: uploadError || "Please try again or use an image URL",
+            variant: "destructive"
+          });
+          return;
+        }
       }
+
+      const productData = {
+        name: editingProduct.name,
+        price: editingProduct.price,
+        category: editingProduct.category,
+        subcategory: editingProduct.subcategory || null,
+        stock: editingProduct.stock || 0,
+        description: editingProduct.description || null,
+        image: imageUrl || null,
+        rating: editingProduct.rating || 5
+      };
+      
+      console.log('Updating product with data:', productData);
 
       const { data, error } = await supabase
         .from('products')
-        .update({
-          name: editingProduct.name,
-          price: editingProduct.price,
-          category: editingProduct.category,
-          subcategory: editingProduct.subcategory,
-          stock: editingProduct.stock,
-          description: editingProduct.description,
-          image: imageUrl,
-          rating: editingProduct.rating
-        })
+        .update(productData)
         .eq('id', editingProduct.id)
         .select();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error from Supabase:', error);
+        throw error;
+      }
 
       toast({
         title: "Product updated",
@@ -369,12 +399,13 @@ const AdminDashboard = () => {
       setEditingProduct(null);
       setImageFile(null);
       setImagePreview(null);
+      setUploadError(null);
       setShowModal(false);
     } catch (error) {
       console.error('Error updating product:', error);
       toast({
         title: "Failed to update product",
-        description: "Please try again later",
+        description: error.message || "Please try again later",
         variant: "destructive"
       });
     }
@@ -551,6 +582,7 @@ const AdminDashboard = () => {
                       setEditingProduct(null);
                       setImageFile(null);
                       setImagePreview(null);
+                      setUploadError(null);
                       setNewProduct({
                         name: '',
                         price: 0,
@@ -686,6 +718,7 @@ const AdminDashboard = () => {
                                     setEditingProduct(product);
                                     setImagePreview(product.image || null);
                                     setImageFile(null);
+                                    setUploadError(null);
                                     setShowModal(true);
                                     setSubcategories(getSubcategoriesByCategoryName(product.category));
                                   }}
@@ -769,7 +802,7 @@ const AdminDashboard = () => {
                   <SelectTrigger className="w-full">
                     <SelectValue placeholder="Select a category" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="bg-white">
                     {categories.map(category => (
                       <SelectItem key={category.id} value={category.name}>{category.name}</SelectItem>
                     ))}
@@ -792,7 +825,7 @@ const AdminDashboard = () => {
                   <SelectTrigger className="w-full">
                     <SelectValue placeholder="Select a subcategory" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="bg-white">
                     {subcategories.map(subcategory => (
                       <SelectItem key={subcategory.id} value={subcategory.id}>{subcategory.name}</SelectItem>
                     ))}
@@ -854,27 +887,53 @@ const AdminDashboard = () => {
                   </span>
                 </div>
                 
-                {/* Image Preview */}
+                {/* Image Preview with remove button */}
                 {imagePreview && (
-                  <div className="mt-4">
+                  <div className="mt-4 relative">
                     <p className="text-sm text-gray-500 mb-2">Preview:</p>
-                    <img 
-                      src={imagePreview} 
-                      alt="Preview" 
-                      className="h-40 object-contain border rounded-md"
-                    />
+                    <div className="relative inline-block">
+                      <img 
+                        src={imagePreview} 
+                        alt="Preview" 
+                        className="h-40 object-contain border rounded-md"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleRemoveImage}
+                        className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 transition-colors"
+                        title="Remove image"
+                      >
+                        <X size={16} />
+                      </button>
+                    </div>
                   </div>
                 )}
                 
-                {/* Existing Image URL */}
+                {/* Existing Image URL with remove button */}
                 {!imageFile && !imagePreview && (editingProduct?.image || newProduct.image) && (
-                  <div className="mt-4">
+                  <div className="mt-4 relative">
                     <p className="text-sm text-gray-500 mb-2">Current image:</p>
-                    <img 
-                      src={editingProduct?.image || newProduct.image} 
-                      alt="Current" 
-                      className="h-40 object-contain border rounded-md"
-                    />
+                    <div className="relative inline-block">
+                      <img 
+                        src={editingProduct?.image || newProduct.image} 
+                        alt="Current" 
+                        className="h-40 object-contain border rounded-md"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleRemoveImage}
+                        className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 transition-colors"
+                        title="Remove image"
+                      >
+                        <X size={16} />
+                      </button>
+                    </div>
+                  </div>
+                )}
+                
+                {uploadError && (
+                  <div className="mt-2 text-red-500 text-sm">
+                    {uploadError}
                   </div>
                 )}
                 
@@ -932,6 +991,7 @@ const AdminDashboard = () => {
                     setEditingProduct(null);
                     setImageFile(null);
                     setImagePreview(null);
+                    setUploadError(null);
                   }}
                 >
                   Cancel
